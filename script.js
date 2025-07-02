@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadContainer = document.getElementById('download-container');
     const downloadTxtBtn = document.getElementById('download-txt-btn');
     const downloadPdfBtn = document.getElementById('download-pdf-btn');
+    const downloadJsonBtn = document.getElementById('download-json-btn'); // Get the button from HTML
     const sidebarUploadContainer = document.getElementById('sidebar-upload-container');
     const mainContent = document.getElementById('main-content');
 
@@ -74,8 +75,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!file) return;
 
         const fileType = file.type;
-        if (fileType !== 'text/plain' && fileType !== 'application/pdf') {
-            errorMessage.textContent = 'Error: Please upload a .txt or .pdf file.';
+        if (fileType !== 'text/plain' && fileType !== 'application/pdf' && fileType !== 'application/json') {
+            errorMessage.textContent = 'Error: Please upload a .txt, .pdf or .json file.';
             return;
         }
 
@@ -125,6 +126,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             };
             reader.readAsArrayBuffer(file);
+        } else if (fileType === 'application/json') {
+            reader.onload = (e) => processJsonData(e.target.result);
+            reader.readAsText(file);
         }
     }
 
@@ -150,26 +154,132 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isHeading) {
                 currentCategory = isHeading;
             } else {
-                // Updated regex to be more flexible with chapter format, allowing decimals
-                const entryMatch = trimmedLine.match(/^\s*\[(.*?)(?:Ch\s*([\d.]+))?\s*\]\s*$/i);
+                // Updated regex to capture name, chapter, and an optional image URL
+                const entryMatch = trimmedLine.match(/^\s*\[(.*?)(?:Ch\s*([\d.]+))?\s*\](?:\((.*)\))?\s*$/i);
                 if (entryMatch && currentCategory) {
                     const name = entryMatch[1].trim();
                     const chapter = entryMatch[2] ? parseFloat(entryMatch[2]) : 'N/A';
+                    const imageUrl = entryMatch[3] ? entryMatch[3].trim() : ''; // Captured image URL
+
                     if (name) {
-                        parsedData[currentCategory].push({ name, chapter });
+                        parsedData[currentCategory].push({ name, chapter, imageUrl });
                     }
                 }
             }
         });
         categoriesData = parsedData;
-        renderAllTables();
-        updateSidebarLinks();
-        updateTotalCount();
+        // Instead of rendering tables immediately, fetch the images first
+        fetchImagesAndRender();
 
         // Show/hide relevant containers
         uploadContainer.style.display = 'none';
         sidebarUploadContainer.classList.remove('hidden');
         downloadContainer.classList.remove('hidden');
+    }
+
+    function processJsonData(jsonData) {
+        try {
+            const parsedData = JSON.parse(jsonData);
+            // Basic validation to ensure it's in the expected format
+            if (typeof parsedData === 'object' && parsedData !== null) {
+                categoriesData = parsedData;
+                fetchImagesAndRender(); // This will only fetch images for entries that are missing them
+
+                // Show/hide relevant containers
+                uploadContainer.style.display = 'none';
+                sidebarUploadContainer.classList.remove('hidden');
+                downloadContainer.classList.remove('hidden');
+            } else {
+                throw new Error('Invalid JSON format.');
+            }
+        } catch (error) {
+            errorMessage.textContent = `Error processing JSON file: ${error.message}`;
+            console.error(error);
+        }
+    }
+
+    /**
+     * Fetches a manga cover from the Jikan API.
+     * @param {string} mangaName - The title of the manga to search for.
+     * @returns {Promise<string|null>} A promise that resolves to the cover image URL or null.
+     */
+    async function fetchCoverFromJikan(mangaName) {
+        // Add a small delay to each request to be respectful to the API
+        await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay
+
+        const apiUrl = `https://api.jikan.moe/v4/manga?q=${encodeURIComponent(mangaName)}&limit=1`;
+
+        try {
+            const response = await fetch(apiUrl);
+
+            if (!response.ok) {
+                // Handle rate limiting or other API errors
+                if (response.status === 429) {
+                    console.warn('Rate limited by Jikan API. Please wait before trying again.');
+                } else {
+                    console.warn(`Jikan API request failed for "${mangaName}" with status: ${response.status}`);
+                }
+                return null;
+            }
+
+            const data = await response.json();
+
+            if (data.data && data.data.length > 0) {
+                const imageUrl = data.data[0]?.images?.jpg?.image_url;
+                if (imageUrl) {
+                    console.log(`Found cover on Jikan for "${mangaName}":`, imageUrl);
+                    return imageUrl;
+                }
+            }
+
+            console.warn(`Could not find cover for "${mangaName}" on Jikan.`);
+            return null;
+
+        } catch (error) {
+            console.error(`Error fetching from Jikan API for \"${mangaName}\":`, error);
+            return null;
+        }
+    }
+
+    async function fetchImagesAndRender() {
+        tablesContainer.innerHTML = '<p class=\"text-white text-center text-lg\">Searching for cover images, please wait...</p>';
+        errorMessage.textContent = ''; // Clear previous errors
+
+        const defaultImageUrl = 'https://shorturl.at/JpeLA';
+        // Create a flat list of all entries that need their images fetched.
+        const entriesToFetch = Object.values(categoriesData).flat().filter(entry => !entry.imageUrl || entry.imageUrl === defaultImageUrl);
+
+        if (entriesToFetch.length > 0) {
+            console.log(`Found ${entriesToFetch.length} entries to fetch images for.`);
+            // Process entries in chunks to avoid rate limiting
+            const chunkSize = 2;
+            for (let i = 0; i < entriesToFetch.length; i += chunkSize) {
+                const chunk = entriesToFetch.slice(i, i + chunkSize);
+                const fetchPromises = chunk.map(entry =>
+                    fetchCoverFromJikan(entry.name).then(imageUrl => { // Use Jikan directly
+                        if (imageUrl) {
+                            entry.imageUrl = imageUrl;
+                        } else {
+                            // If not found, keep the default URL
+                            entry.imageUrl = defaultImageUrl;
+                        }
+                    })
+                );
+                await Promise.allSettled(fetchPromises);
+                console.log(`Processed chunk ${i / chunkSize + 1}`);
+                // After processing a chunk, re-render to show progress
+                renderAllTables(); 
+                // Optional: add a longer delay between chunks if still facing issues
+                await new Promise(resolve => setTimeout(resolve, 1000)); // 1-second delay between chunks
+            }
+        } else {
+            // If no images need to be fetched, just render.
+            console.log("No new images to fetch. Rendering from existing data.");
+        }
+
+        renderAllTables();
+        updateSidebarLinks();
+        updateTotalCount();
     }
 
     function renderAllTables() {
@@ -230,6 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <thead>
                         <tr>
                             <th class="px-4 py-2 text-center">S.No</th>
+                            <th class="px-2 py-2 text-center">Cover</th>
                             <th class="px-4 py-2 text-left">Name</th>
                             <th class="px-4 py-2 text-center">Chapter</th>
                             <th class="px-4 py-2 text-center">Actions</th>
@@ -239,12 +350,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${entries.map((entry, index) => `
                             <tr data-category="${category}" data-index="${index}">
                                 <td class="border-t border-gray-700 px-4 py-2 text-center">${index + 1}</td>
+                                <td class="border-t border-gray-700 px-2 py-2 text-center">
+                                    <img src="${entry.imageUrl || 'https://via.placeholder.com/80x120.png?text=No+Image'}" alt="${entry.name}" class="w-20 h-28 object-cover rounded-md mx-auto">
+                                </td>
                                 <td class="border-t border-gray-700 px-4 py-2" contenteditable="true" data-field="name">
                                     <div class="glass-container">${entry.name}</div>
                                 </td>
                                 <td class="border-t border-gray-700 px-4 py-2 text-center" contenteditable="true" data-field="chapter">${entry.chapter}</td>
-                                <td class="border-t border-gray-700 px-4 py-2 text-center">
-                                    <button class="delete-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs">Delete</button>
+                                <td class="border-t border-gray-700 px-4 py-2 text-center">\
+                                    <button class="delete-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs">Delete</button>\
+                                    <button class="refresh-cover-btn bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-xs ml-1">R</button>\
                                 </td>
                             </tr>
                         `).join('')}
@@ -276,6 +391,12 @@ document.addEventListener('DOMContentLoaded', () => {
         newRow.className = 'new-entry-row'; // Class to identify the temporary row
         newRow.innerHTML = `
             <td class="border-t border-gray-700 px-4 py-2 text-center">${table.rows.length}</td>
+            <td class="border-t border-gray-700 px-2 py-2 text-center">
+                <input type="file" accept="image/*" class="new-cover-input hidden" onchange="previewImage(event, this)">
+                <label class="cursor-pointer">
+                    <img src="https://via.placeholder.com/80x120.png?text=Cover+Image" alt="Cover Image" class="new-cover-preview w-20 h-28 object-cover rounded-md mx-auto">
+                </label>
+            </td>
             <td class="border-t border-gray-700 px-4 py-2"><input type="text" class="new-name-input bg-gray-800 text-white w-full p-1 rounded" placeholder="Name"></td>
             <td class="border-t border-gray-700 px-4 py-2"><input type="text" inputmode="decimal" class="new-chapter-input bg-gray-800 text-white w-20 p-1 rounded" placeholder="Ch"></td>
             <td class="border-t border-gray-700 px-4 py-2 text-center">
@@ -321,20 +442,70 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderTable(category, categoriesData[category]);
                 updateTotalCount();
             }
+        } else if (target.classList.contains('refresh-cover-btn')) {
+            const row = target.closest('tr');
+            const category = row.dataset.category;
+            const index = parseInt(row.dataset.index, 10);
+            const entry = categoriesData[category]?.[index];
+
+            if (entry) {
+                const originalButtonText = target.textContent;
+                target.disabled = true;
+                target.textContent = '...';
+
+                fetchCoverFromJikan(entry.name).then(imageUrl => {
+                    entry.imageUrl = imageUrl || 'https://shorturl.at/JpeLA';
+                    renderTable(category, categoriesData[category]);
+                }).catch(() => {
+                    // Re-enable the button on failure
+                    const refreshedRow = document.querySelector(`tr[data-category=\"${category}\"][data-index=\"${index}\"]`);
+                    const button = refreshedRow?.querySelector('.refresh-cover-btn');
+                    if(button) {
+                        button.disabled = false;
+                        button.textContent = originalButtonText;
+                    }
+                });
+            }
         } else if (target.classList.contains('save-new-btn')) {
             const category = target.dataset.category;
             const row = target.closest('tr');
             const nameInput = row.querySelector('.new-name-input');
             const chapterInput = row.querySelector('.new-chapter-input');
+            const coverInput = row.querySelector('.new-cover-input');
             const name = nameInput.value.trim();
             const chapter = chapterInput.value.trim();
 
             if (name && chapter && !isNaN(chapter)) {
-                const newEntry = { name, chapter: parseFloat(chapter) };
-                if (categoriesData[category]) {
-                    categoriesData[category].push(newEntry);
-                    renderTable(category, categoriesData[category]);
-                    updateTotalCount();
+                const newEntry = { name, chapter: parseFloat(chapter), imageUrl: '' };
+
+                const saveEntry = () => {
+                    if (categoriesData[category]) {
+                        categoriesData[category].push(newEntry);
+                        renderTable(category, categoriesData[category]);
+                        updateTotalCount();
+                    }
+                };
+
+                // Handle image URL
+                if (coverInput.files.length > 0) {
+                    const file = coverInput.files[0];
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        newEntry.imageUrl = e.target.result;
+                        saveEntry();
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    // If no file is provided, fetch from Jikan
+                    target.disabled = true; // Disable button to prevent double-clicking
+                    target.textContent = 'Searching...';
+                    fetchCoverFromJikan(name).then(imageUrl => {
+                        newEntry.imageUrl = imageUrl || 'https://shorturl.at/JpeLA';
+                        saveEntry();
+                    }).catch(() => {
+                        newEntry.imageUrl = 'https://shorturl.at/JpeLA';
+                        saveEntry();
+                    });
                 }
             } else {
                 alert('Please fill in both name and a valid chapter number.');
@@ -342,6 +513,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (target.classList.contains('cancel-new-btn')) {
             const row = target.closest('tr');
             row.remove();
+        } else if (target.classList.contains('new-cover-preview')) {
+            const fileInput = target.closest('tr').querySelector('.new-cover-input');
+            if (fileInput) {
+                fileInput.click();
+            }
         }
     });
 
@@ -355,7 +531,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Sort before generating text
                 entries.sort((a, b) => a.name.localeCompare(b.name));
                 entries.forEach(entry => {
-                    content += `[${entry.name} Ch ${entry.chapter}]\n`;
+                    // Append the image URL in parentheses
+                    content += `[${entry.name} Ch ${entry.chapter}](${entry.imageUrl || ''})\n`;
                 });
                 content += '\n';
             }
@@ -363,13 +540,26 @@ document.addEventListener('DOMContentLoaded', () => {
         return content;
     }
 
-    downloadTxtBtn.addEventListener('click', () => {
+    downloadTxtBtn.addEventListener("click", () => {
         const textContent = generateTextContent();
         const blob = new Blob([textContent], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = 'manga-list.txt';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+
+    downloadJsonBtn.addEventListener('click', () => {
+        const jsonContent = JSON.stringify(categoriesData, null, 2);
+        const blob = new Blob([jsonContent], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'manga-list.json';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -395,7 +585,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 entries.sort((a, b) => a.name.localeCompare(b.name));
                 entries.forEach(entry => {
                     if (y > pageHeight - 10) { doc.addPage(); y = 15; }
-                    doc.text(`[${entry.name} Ch ${entry.chapter}]`, 15, y);
+                    // Append the image URL in parentheses to the PDF text
+                    doc.text(`[${entry.name} Ch ${entry.chapter}](${entry.imageUrl || ''})`, 15, y);
                     y += 7;
                 });
                 y += 5;
