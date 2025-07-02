@@ -236,13 +236,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return null;
 
         } catch (error) {
-            console.error(`Error fetching from Jikan API for "${mangaName}":`, error);
+            console.error(`Error fetching from Jikan API for \"${mangaName}\":`, error);
             return null;
         }
     }
 
     async function fetchImagesAndRender() {
-        tablesContainer.innerHTML = '<p class="text-white text-center text-lg">Searching for cover images, please wait...</p>';
+        tablesContainer.innerHTML = '<p class=\"text-white text-center text-lg\">Searching for cover images, please wait...</p>';
         errorMessage.textContent = ''; // Clear previous errors
 
         const defaultImageUrl = 'https://shorturl.at/JpeLA';
@@ -256,7 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let i = 0; i < entriesToFetch.length; i += chunkSize) {
                 const chunk = entriesToFetch.slice(i, i + chunkSize);
                 const fetchPromises = chunk.map(entry =>
-                    fetchCoverFromJikan(entry.name).then(imageUrl => {
+                    fetchCoverFromJikan(entry.name).then(imageUrl => { // Use Jikan directly
                         if (imageUrl) {
                             entry.imageUrl = imageUrl;
                         } else {
@@ -357,8 +357,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <div class="glass-container">${entry.name}</div>
                                 </td>
                                 <td class="border-t border-gray-700 px-4 py-2 text-center" contenteditable="true" data-field="chapter">${entry.chapter}</td>
-                                <td class="border-t border-gray-700 px-4 py-2 text-center">
-                                    <button class="delete-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs">Delete</button>
+                                <td class="border-t border-gray-700 px-4 py-2 text-center">\
+                                    <button class="delete-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs">Delete</button>\
+                                    <button class="refresh-cover-btn bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-xs ml-1">R</button>\
                                 </td>
                             </tr>
                         `).join('')}
@@ -440,6 +441,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 categoriesData[category].splice(index, 1);
                 renderTable(category, categoriesData[category]);
                 updateTotalCount();
+            }
+        } else if (target.classList.contains('refresh-cover-btn')) {
+            const row = target.closest('tr');
+            const category = row.dataset.category;
+            const index = parseInt(row.dataset.index, 10);
+            const entry = categoriesData[category]?.[index];
+
+            if (entry) {
+                const originalButtonText = target.textContent;
+                target.disabled = true;
+                target.textContent = '...';
+
+                fetchCoverFromJikan(entry.name).then(imageUrl => {
+                    entry.imageUrl = imageUrl || 'https://shorturl.at/JpeLA';
+                    renderTable(category, categoriesData[category]);
+                }).catch(() => {
+                    // Re-enable the button on failure
+                    const refreshedRow = document.querySelector(`tr[data-category=\"${category}\"][data-index=\"${index}\"]`);
+                    const button = refreshedRow?.querySelector('.refresh-cover-btn');
+                    if(button) {
+                        button.disabled = false;
+                        button.textContent = originalButtonText;
+                    }
+                });
             }
         } else if (target.classList.contains('save-new-btn')) {
             const category = target.dataset.category;
