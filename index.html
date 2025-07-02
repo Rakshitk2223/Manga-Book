@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comic Book Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background-color: #141414;
+            color: #fff;
+        }
+        .netflix-red {
+            background-color: #e50914;
+        }
+        .netflix-red-text {
+            color: #e50914;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <header class="bg-black py-4">
+        <div class="container mx-auto text-center">
+            <h1 class="text-3xl font-bold netflix-red-text">Comic Book Analyzer</h1>
+        </div>
+    </header>
+
+    <main class="container mx-auto mt-10 p-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+                <h2 class="text-2xl font-semibold mb-4">Upload Your Comic Data</h2>
+                <p class="mb-4">Upload a `.txt` file with each comic on a new line, formatted as `Comic Title, Genre`.</p>
+                <input type="file" id="file-upload" accept=".txt" class="block w-full text-sm text-gray-400
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-red-50 file:text-red-700
+                    hover:file:bg-red-100
+                "/>
+                <p id="error-message" class="text-red-500 mt-2"></p>
+            </div>
+
+            <div id="summary-section" class="bg-gray-800 p-6 rounded-lg shadow-lg hidden">
+                <h2 class="text-2xl font-semibold mb-4">Summary</h2>
+                <p class="text-lg">Total Number of Comics: <span id="total-comics" class="font-bold netflix-red-text">0</span></p>
+            </div>
+        </div>
+
+        <div id="chart-section" class="bg-gray-800 p-6 rounded-lg shadow-lg mt-8 hidden">
+            <h2 class="text-2xl font-semibold mb-4">Genre Distribution</h2>
+            <canvas id="genre-chart"></canvas>
+        </div>
+    </main>
+
+    <script>
+        const fileUpload = document.getElementById('file-upload');
+        const errorMessage = document.getElementById('error-message');
+        const summarySection = document.getElementById('summary-section');
+        const totalComics = document.getElementById('total-comics');
+        const chartSection = document.getElementById('chart-section');
+        const genreChartCanvas = document.getElementById('genre-chart');
+        let genreChart;
+
+        fileUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+
+            if (!file) {
+                return;
+            }
+
+            if (file.type !== 'text/plain') {
+                errorMessage.textContent = 'Error: Please upload a .txt file.';
+                summarySection.classList.add('hidden');
+                chartSection.classList.add('hidden');
+                return;
+            }
+
+            errorMessage.textContent = '';
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const content = e.target.result;
+                processData(content);
+            };
+            reader.readAsText(file);
+        });
+
+        function processData(data) {
+            const lines = data.split('\n').filter(line => line.trim() !== '');
+
+            if (lines.length === 0) {
+                errorMessage.textContent = 'File is empty or contains no valid data.';
+                summarySection.classList.add('hidden');
+                chartSection.classList.add('hidden');
+                return;
+            }
+
+            const comics = lines.map(line => {
+                const [title, genre] = line.split(',').map(item => item.trim());
+                return { title, genre };
+            }).filter(comic => comic.title && comic.genre);
+
+            totalComics.textContent = comics.length;
+            summarySection.classList.remove('hidden');
+
+            const genreCounts = comics.reduce((acc, comic) => {
+                acc[comic.genre] = (acc[comic.genre] || 0) + 1;
+                return acc;
+            }, {});
+
+            updateChart(genreCounts);
+        }
+
+        function updateChart(genreData) {
+            chartSection.classList.remove('hidden');
+            const labels = Object.keys(genreData);
+            const data = Object.values(genreData);
+
+            if (genreChart) {
+                genreChart.destroy();
+            }
+
+            genreChart = new Chart(genreChartCanvas, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Number of Comics',
+                        data: data,
+                        backgroundColor: 'rgba(229, 9, 20, 0.8)',
+                        borderColor: 'rgba(229, 9, 20, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#fff'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: '#fff'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#fff'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
