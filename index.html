@@ -93,41 +93,31 @@
         const PREDEFINED_HEADINGS = ['Manga', 'Manhwa', 'Manhua', 'OG Manhwa', 'OG Manhua', 'NG Manhwa', 'NG Manhua', 'Ero', 'To read', 'Incomplete'];
 
         // --- Sidebar Logic ---
-        menuBtn.addEventListener('click', () => {
-            sidebar.classList.toggle('-translate-x-full');
-            overlay.classList.toggle('hidden');
-        });
-
-        overlay.addEventListener('click', () => {
-            sidebar.classList.add('-translate-x-full');
-            overlay.classList.add('hidden');
-        });
-
-        sidebarLinks.addEventListener('click', (e) => {
-            if (e.target.tagName === 'A') {
-                // Smooth scroll to the section
-                const targetId = e.target.getAttribute('href').substring(1);
-                const targetElement = document.getElementById(targetId);
-                if (targetElement) {
-                    targetElement.scrollIntoView({ behavior: 'smooth' });
-                }
-                // Close sidebar
-                toggleSidebar();
-            }
-        });
-
-        // Sidebar toggle functionality
         function toggleSidebar() {
             sidebar.classList.toggle('-translate-x-full');
             overlay.classList.toggle('hidden');
         }
 
         menuBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); // Prevent click from immediately closing sidebar via body listener
+            e.stopPropagation(); // Prevent click from immediately closing sidebar if other listeners exist
             toggleSidebar();
         });
 
         overlay.addEventListener('click', toggleSidebar);
+
+        sidebarLinks.addEventListener('click', (e) => {
+            if (e.target.tagName === 'A' && e.target.href) {
+                // Smooth scroll to the section
+                const targetId = e.target.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({ behavior: 'smooth' });
+                }
+                // Close sidebar after navigation
+                toggleSidebar();
+            }
+        });
+
 
         // --- File Processing Logic ---
         fileUpload.addEventListener('change', (event) => {
@@ -189,10 +179,10 @@
                 if (isHeading) {
                     currentCategory = isHeading;
                 } else {
-                    const entryMatch = trimmedLine.match(/^(.*?)\s+ch\s+(\d+)$/i);
+                    const entryMatch = trimmedLine.match(/^\[(.*?)\s+(Ch\s+\d+)\]$/i);
                     if (entryMatch && currentCategory) {
                         const name = entryMatch[1].trim();
-                        const chapters = `ch ${entryMatch[2]}`;
+                        const chapters = entryMatch[2];
                         if (name) {
                             categories[currentCategory].push({ name, chapters });
                         }
@@ -234,6 +224,7 @@
                     const thead = document.createElement('thead');
                     thead.innerHTML = `
                         <tr class="border-b border-gray-600">
+                            <th class="p-2 w-16">S.No</th>
                             <th class="p-2">Name</th>
                             <th class="p-2 text-right">Chapters Read</th>
                         </tr>
@@ -241,10 +232,11 @@
                     table.appendChild(thead);
 
                     const tbody = document.createElement('tbody');
-                    entries.forEach(entry => {
+                    entries.forEach((entry, index) => {
                         const row = document.createElement('tr');
                         row.className = 'border-b border-gray-700';
                         row.innerHTML = `
+                            <td class="p-2">${index + 1}</td>
                             <td class="p-2">${entry.name}</td>
                             <td class="p-2 text-right">${entry.chapters}</td>
                         `;
