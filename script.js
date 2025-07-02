@@ -91,9 +91,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 pdfjsLib.getDocument(typedarray).promise.then(pdf => {
                     const pagePromises = Array.from({ length: pdf.numPages }, (_, i) =>
                         pdf.getPage(i + 1).then(page =>
-                            page.getTextContent().then(textContent =>
-                                textContent.items.map(item => item.str).join(' ')
-                            )
+                            page.getTextContent().then(textContent => {
+                                // Sort text items by their vertical position, then horizontal.
+                                // This helps to reconstruct the text in the correct reading order.
+                                const items = textContent.items.slice().sort((a, b) => {
+                                    if (a.transform[5] < b.transform[5]) return 1;
+                                    if (a.transform[5] > b.transform[5]) return -1;
+                                    if (a.transform[4] < b.transform[4]) return -1;
+                                    if (a.transform[4] > b.transform[4]) return 1;
+                                    return 0;
+                                });
+
+                                let lastY = -1;
+                                let pageText = '';
+                                items.forEach(item => {
+                                    // A significant change in the Y-coordinate indicates a new line.
+                                    if (lastY !== -1 && Math.abs(item.transform[5] - lastY) > 5) {
+                                        pageText += '\n';
+                                    }
+                                    pageText += item.str;
+                                    lastY = item.transform[5];
+                                });
+                                return pageText;
+                            })
                         )
                     );
                     Promise.all(pagePromises).then(pageTexts => {
