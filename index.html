@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="scroll-behavior: smooth;">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Comic Book Analyzer</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PDF.js library for handling PDF files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
     <style>
         body {
             background-color: #141414;
@@ -17,59 +18,155 @@
         .netflix-red-text {
             color: #e50914;
         }
+        /* Custom scrollbar for a more modern look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1f1f1f;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #e50914;
+        }
     </style>
 </head>
 <body class="antialiased">
-    <header class="bg-black py-4">
-        <div class="container mx-auto text-center">
-            <h1 class="text-3xl font-bold netflix-red-text">Comic Book Analyzer</h1>
+    <header class="bg-black py-4 shadow-lg z-30 relative">
+        <div class="container mx-auto flex items-center px-4">
+            <button id="menu-btn" class="text-white focus:outline-none z-40">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            </button>
+            <h1 class="text-3xl font-bold netflix-red-text mx-auto">Comic Book Analyzer</h1>
         </div>
     </header>
 
-    <main class="container mx-auto mt-10 p-4">
-        <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
-            <h2 class="text-2xl font-semibold mb-4">Upload Your Comic Data</h2>
-            <p class="mb-4">Upload a `.txt` file with headings and entries. Each entry should be on a new line, formatted as `Name ChapterCount`.</p>
-            <input type="file" id="file-upload" accept=".txt" class="block w-full text-sm text-gray-400
-                file:mr-4 file:py-2 file:px-4
-                file:rounded-full file:border-0
-                file:text-sm file:font-semibold
-                file:bg-red-50 file:text-red-700
-                hover:file:bg-red-100
-            "/>
-            <p id="error-message" class="text-red-500 mt-2"></p>
-        </div>
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-gray-900 p-4 shadow-lg transform -translate-x-full transition-transform duration-300 ease-in-out z-40">
+        <h3 class="text-lg font-semibold mb-4 border-b border-gray-600 pb-2">Categories</h3>
+        <ul id="sidebar-links" class="space-y-2">
+            <!-- Links will be dynamically inserted here -->
+        </ul>
+    </aside>
 
-        <!-- Container for the dynamically generated tables -->
-        <div id="tables-container" class="mt-8"></div>
-    </main>
+    <!-- Overlay -->
+    <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-30"></div>
+
+    <!-- Main Content -->
+    <div class="container mx-auto mt-10 px-4">
+        <main>
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+                <h2 class="text-2xl font-semibold mb-4">Upload Your Comic Data</h2>
+                <p class="mb-4">Upload a `.txt` or `.pdf` file with headings and entries. Each entry should be on a new line, formatted as `Name ch ChapterCount`.</p>
+                <input type="file" id="file-upload" accept=".txt,.pdf" class="block w-full text-sm text-gray-400
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-red-50 file:text-red-700
+                    hover:file:bg-red-100
+                "/>
+                <p id="error-message" class="text-red-500 mt-2"></p>
+            </div>
+
+            <!-- Container for the dynamically generated tables -->
+            <div id="tables-container" class="mt-8"></div>
+        </main>
+    </div>
 
     <script>
+        // Set the worker source for PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
+
         const fileUpload = document.getElementById('file-upload');
         const errorMessage = document.getElementById('error-message');
         const tablesContainer = document.getElementById('tables-container');
+        
+        const sidebar = document.getElementById('sidebar');
+        const menuBtn = document.getElementById('menu-btn');
+        const overlay = document.getElementById('overlay');
+        const sidebarLinks = document.getElementById('sidebar-links');
 
+        // Define the fixed list of headings
+        const PREDEFINED_HEADINGS = ['Manga', 'Manhwa', 'Manhua', 'OG Manhwa', 'OG Manhua', 'NG Manhwa', 'NG Manhua', 'Ero', 'To read', 'Incomplete'];
+
+        // --- Sidebar Logic ---
+        menuBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        });
+
+        overlay.addEventListener('click', () => {
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+        });
+
+        sidebarLinks.addEventListener('click', (e) => {
+            if (e.target.tagName === 'A') {
+                // Smooth scroll to the section
+                const targetId = e.target.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({ behavior: 'smooth' });
+                }
+                // Close sidebar
+                toggleSidebar();
+            }
+        });
+
+        // Sidebar toggle functionality
+        function toggleSidebar() {
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+
+        menuBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent click from immediately closing sidebar via body listener
+            toggleSidebar();
+        });
+
+        overlay.addEventListener('click', toggleSidebar);
+
+        // --- File Processing Logic ---
         fileUpload.addEventListener('change', (event) => {
             const file = event.target.files[0];
 
-            if (!file) {
-                return;
-            }
+            if (!file) return;
 
-            if (file.type !== 'text/plain') {
-                errorMessage.textContent = 'Error: Please upload a .txt file.';
-                tablesContainer.innerHTML = ''; // Clear previous tables
+            const fileType = file.type;
+            if (fileType !== 'text/plain' && fileType !== 'application/pdf') {
+                errorMessage.textContent = 'Error: Please upload a .txt or .pdf file.';
+                tablesContainer.innerHTML = '';
+                sidebarLinks.innerHTML = '';
                 return;
             }
 
             errorMessage.textContent = '';
-
             const reader = new FileReader();
-            reader.onload = (e) => {
-                const content = e.target.result;
-                processData(content);
-            };
-            reader.readAsText(file);
+
+            if (fileType === 'text/plain') {
+                reader.onload = (e) => processData(e.target.result);
+                reader.readAsText(file);
+            } else if (fileType === 'application/pdf') {
+                reader.onload = (e) => {
+                    const typedarray = new Uint8Array(e.target.result);
+                    pdfjsLib.getDocument(typedarray).promise.then(pdf => {
+                        const pagePromises = Array.from({ length: pdf.numPages }, (_, i) => 
+                            pdf.getPage(i + 1).then(page => 
+                                page.getTextContent().then(textContent => 
+                                    textContent.items.map(item => item.str).join(' ')
+                                )
+                            )
+                        );
+                        Promise.all(pagePromises).then(pageTexts => {
+                            processData(pageTexts.join('\n'));
+                        });
+                    });
+                };
+                reader.readAsArrayBuffer(file);
+            }
         });
 
         function processData(data) {
@@ -78,63 +175,62 @@
             if (lines.length === 0) {
                 errorMessage.textContent = 'File is empty or contains no valid data.';
                 tablesContainer.innerHTML = '';
+                sidebarLinks.innerHTML = '';
                 return;
             }
 
-            const categories = {};
+            const categories = PREDEFINED_HEADINGS.reduce((acc, h) => ({...acc, [h]: [] }), {});
             let currentCategory = null;
 
             lines.forEach(line => {
                 const trimmedLine = line.trim();
-                // Regex to find a name (can include spaces) and a number at the end of the line.
-                const entryMatch = trimmedLine.match(/^(.*[a-zA-Z].*)\s+(\d+)$/);
+                const isHeading = PREDEFINED_HEADINGS.find(h => h.toLowerCase() === trimmedLine.toLowerCase());
 
-                if (entryMatch) {
-                    // This is a valid entry with a name and chapter count.
-                    if (!currentCategory) {
-                        // Entries found before any category was defined.
-                        // We can assign them to a default category.
-                        currentCategory = "Uncategorized";
-                        categories[currentCategory] = [];
-                    }
-                    const name = entryMatch[1].trim();
-                    const chapters = parseInt(entryMatch[2], 10);
-                    categories[currentCategory].push({ name, chapters });
+                if (isHeading) {
+                    currentCategory = isHeading;
                 } else {
-                    // This line does not end with a number, so treat it as a new category heading.
-                    currentCategory = trimmedLine;
-                    if (!categories[currentCategory]) {
-                        categories[currentCategory] = [];
+                    const entryMatch = trimmedLine.match(/^(.*?)\s+ch\s+(\d+)$/i);
+                    if (entryMatch && currentCategory) {
+                        const name = entryMatch[1].trim();
+                        const chapters = `ch ${entryMatch[2]}`;
+                        if (name) {
+                            categories[currentCategory].push({ name, chapters });
+                        }
                     }
                 }
             });
             
-            renderTables(categories);
+            renderTablesAndSidebar(categories);
         }
 
-        function renderTables(categories) {
-            // Clear any existing tables
+        function renderTablesAndSidebar(categories) {
             tablesContainer.innerHTML = '';
+            sidebarLinks.innerHTML = '';
 
-            for (const categoryName in categories) {
+            PREDEFINED_HEADINGS.forEach(categoryName => {
                 const entries = categories[categoryName];
 
-                // Create a container for the table
-                const tableWrapper = document.createElement('div');
-                tableWrapper.className = 'bg-gray-800 p-6 rounded-lg shadow-lg mt-8';
+                if (entries && entries.length > 0) {
+                    const categoryId = `category-${categoryName.replace(/\s+/g, '-')}`;
 
-                // Add the category title
-                const title = document.createElement('h2');
-                title.className = 'text-2xl font-semibold mb-4 netflix-red-text';
-                title.textContent = categoryName;
-                tableWrapper.appendChild(title);
+                    // Add link to sidebar
+                    const listItem = document.createElement('li');
+                    listItem.innerHTML = `<a href="#${categoryId}" class="block text-gray-300 hover:text-white hover:bg-gray-700 p-2 rounded-md transition-colors duration-200">${categoryName}</a>`;
+                    sidebarLinks.appendChild(listItem);
 
-                if (entries.length > 0) {
-                    // Create the table element
+                    // Create and render the table
+                    const tableWrapper = document.createElement('div');
+                    tableWrapper.id = categoryId;
+                    tableWrapper.className = 'bg-gray-800 p-6 rounded-lg shadow-lg mt-8 scroll-mt-20'; // scroll-mt-20 to offset for header
+
+                    const title = document.createElement('h2');
+                    title.className = 'text-2xl font-semibold mb-4 netflix-red-text';
+                    title.textContent = categoryName;
+                    tableWrapper.appendChild(title);
+
                     const table = document.createElement('table');
                     table.className = 'w-full text-left';
 
-                    // Create table header
                     const thead = document.createElement('thead');
                     thead.innerHTML = `
                         <tr class="border-b border-gray-600">
@@ -144,7 +240,6 @@
                     `;
                     table.appendChild(thead);
 
-                    // Create table body and rows
                     const tbody = document.createElement('tbody');
                     entries.forEach(entry => {
                         const row = document.createElement('tr');
@@ -157,14 +252,10 @@
                     });
                     table.appendChild(tbody);
                     tableWrapper.appendChild(table);
-                } else {
-                    const noEntriesMessage = document.createElement('p');
-                    noEntriesMessage.textContent = "No entries with chapter counts in this category.";
-                    tableWrapper.appendChild(noEntriesMessage);
+                    
+                    tablesContainer.appendChild(tableWrapper);
                 }
-
-                tablesContainer.appendChild(tableWrapper);
-            }
+            });
         }
     </script>
 </body>
