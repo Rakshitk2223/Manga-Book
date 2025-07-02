@@ -11,7 +11,7 @@
         body {
             background-color: #141414;
             color: #fff;
-            padding-left: 3.5rem; /* Add padding to prevent content from overlapping with the fixed button */
+            padding-left: 5rem; /* Add padding to prevent content from overlapping with the fixed button */
         }
         .netflix-red {
             background-color: #e50914;
@@ -44,6 +44,15 @@
             padding: 0.5rem; /* p-2 */
             transition: background-color 0.2s;
         }
+        #total-count-footer {
+            position: absolute;
+            top: 50%;
+            right: 1rem;
+            transform: translateY(-50%);
+            color: #fff;
+            font-size: 0.875rem;
+            display: none; /* Hidden by default */
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -53,8 +62,9 @@
 
     <div class="pl-20"> <!-- Add padding to the left of the content to avoid overlap with the button -->
         <header class="bg-black py-4 shadow-lg z-20 relative">
-            <div class="container mx-auto text-center px-4">
+            <div class="container mx-auto text-center px-4 relative">
                 <h1 class="text-3xl font-bold text-white">Manga List</h1>
+                <div id="total-count-footer"></div>
             </div>
         </header>
 
@@ -74,7 +84,7 @@
             <main>
                 <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
                     <h2 class="text-2xl font-semibold mb-4">Upload Your Comic Data</h2>
-                    <p class="mb-4">Upload a `.txt` or `.pdf` file with headings and entries. Each entry should be on a new line, formatted as `Name ch ChapterCount`.</p>
+                    <p class="mb-4">Upload a `.txt` or `.pdf` file with headings and entries. Each entry should be on a new line, formatted as `[Name Ch ChapterCount]`.</p>
                     <input type="file" id="file-upload" accept=".txt,.pdf" class="block w-full text-sm text-gray-400
                         file:mr-4 file:py-2 file:px-4
                         file:rounded-full file:border-0
@@ -98,6 +108,7 @@
         const fileUpload = document.getElementById('file-upload');
         const errorMessage = document.getElementById('error-message');
         const tablesContainer = document.getElementById('tables-container');
+        const totalCountFooter = document.getElementById('total-count-footer');
         
         const sidebar = document.getElementById('sidebar');
         const menuBtn = document.getElementById('menu-btn');
@@ -145,6 +156,7 @@
                 errorMessage.textContent = 'Error: Please upload a .txt or .pdf file.';
                 tablesContainer.innerHTML = '';
                 sidebarLinks.innerHTML = '';
+                totalCountFooter.style.display = 'none';
                 return;
             }
 
@@ -181,6 +193,7 @@
                 errorMessage.textContent = 'File is empty or contains no valid data.';
                 tablesContainer.innerHTML = '';
                 sidebarLinks.innerHTML = '';
+                totalCountFooter.style.display = 'none';
                 return;
             }
 
@@ -211,11 +224,13 @@
         function renderTablesAndSidebar(categories) {
             tablesContainer.innerHTML = '';
             sidebarLinks.innerHTML = '';
+            let totalEntries = 0;
 
             PREDEFINED_HEADINGS.forEach(categoryName => {
                 const entries = categories[categoryName];
 
                 if (entries && entries.length > 0) {
+                    totalEntries += entries.length;
                     const categoryId = `category-${categoryName.replace(/\s+/g, '-')}`;
 
                     // Add link to sidebar
@@ -251,9 +266,9 @@
                         const row = document.createElement('tr');
                         row.className = 'border-b border-gray-700';
                         row.innerHTML = `
-                            <td class="p-2">${index + 1}</td>
-                            <td class="p-2">${entry.name}</td>
-                            <td class="p-2 text-right">${entry.chapters}</td>
+                            <td class="p-2 text-white">${index + 1}</td>
+                            <td class="p-2 text-white">${entry.name}</td>
+                            <td class="p-2 text-right text-white">${entry.chapters}</td>
                         `;
                         tbody.appendChild(row);
                     });
@@ -263,6 +278,14 @@
                     tablesContainer.appendChild(tableWrapper);
                 }
             });
+
+            // Update and display the total count footer
+            if (totalEntries > 0) {
+                totalCountFooter.textContent = `Total Read Manwha/Manga/Manhua = ${totalEntries}`;
+                totalCountFooter.style.display = 'block';
+            } else {
+                totalCountFooter.style.display = 'none';
+            }
         }
     </script>
 </body>
