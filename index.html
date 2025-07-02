@@ -11,6 +11,7 @@
         body {
             background-color: #141414;
             color: #fff;
+            padding-left: 3.5rem; /* Add padding to prevent content from overlapping with the fixed button */
         }
         .netflix-red {
             background-color: #e50914;
@@ -32,48 +33,62 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #e50914;
         }
+        #menu-btn {
+            position: fixed;
+            top: 50%;
+            left: 1rem; /* 16px */
+            transform: translateY(-50%);
+            z-index: 50;
+            background-color: rgba(31, 41, 55, 0.75); /* bg-gray-800 with opacity */
+            border-radius: 9999px; /* rounded-full */
+            padding: 0.5rem; /* p-2 */
+            transition: background-color 0.2s;
+        }
     </style>
 </head>
 <body class="antialiased">
-    <header class="bg-black py-4 shadow-lg z-30 relative">
-        <div class="container mx-auto flex items-center px-4">
-            <button id="menu-btn" class="text-white focus:outline-none z-40">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-            </button>
-            <h1 class="text-3xl font-bold netflix-red-text mx-auto">Comic Book Analyzer</h1>
-        </div>
-    </header>
+    <button id="menu-btn" class="text-white focus:outline-none">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+    </button>
 
-    <!-- Sidebar -->
-    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-gray-900 p-4 shadow-lg transform -translate-x-full transition-transform duration-300 ease-in-out z-40">
-        <h3 class="text-lg font-semibold mb-4 border-b border-gray-600 pb-2">Categories</h3>
-        <ul id="sidebar-links" class="space-y-2">
-            <!-- Links will be dynamically inserted here -->
-        </ul>
-    </aside>
-
-    <!-- Overlay -->
-    <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-30"></div>
-
-    <!-- Main Content -->
-    <div class="container mx-auto mt-10 px-4">
-        <main>
-            <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
-                <h2 class="text-2xl font-semibold mb-4">Upload Your Comic Data</h2>
-                <p class="mb-4">Upload a `.txt` or `.pdf` file with headings and entries. Each entry should be on a new line, formatted as `Name ch ChapterCount`.</p>
-                <input type="file" id="file-upload" accept=".txt,.pdf" class="block w-full text-sm text-gray-400
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded-full file:border-0
-                    file:text-sm file:font-semibold
-                    file:bg-red-50 file:text-red-700
-                    hover:file:bg-red-100
-                "/>
-                <p id="error-message" class="text-red-500 mt-2"></p>
+    <div class="pl-20"> <!-- Add padding to the left of the content to avoid overlap with the button -->
+        <header class="bg-black py-4 shadow-lg z-20 relative">
+            <div class="container mx-auto text-center px-4">
+                <h1 class="text-3xl font-bold text-white">Manga List</h1>
             </div>
+        </header>
 
-            <!-- Container for the dynamically generated tables -->
-            <div id="tables-container" class="mt-8"></div>
-        </main>
+        <!-- Sidebar -->
+        <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-gray-900 p-4 shadow-lg transform -translate-x-full transition-transform duration-300 ease-in-out z-40">
+            <h3 class="text-lg font-semibold mb-4 border-b border-gray-600 pb-2">Categories</h3>
+            <ul id="sidebar-links" class="space-y-2">
+                <!-- Links will be dynamically inserted here -->
+            </ul>
+        </aside>
+
+        <!-- Overlay -->
+        <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-30"></div>
+
+        <!-- Main Content -->
+        <div class="container mx-auto mt-10 px-4">
+            <main>
+                <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+                    <h2 class="text-2xl font-semibold mb-4">Upload Your Comic Data</h2>
+                    <p class="mb-4">Upload a `.txt` or `.pdf` file with headings and entries. Each entry should be on a new line, formatted as `Name ch ChapterCount`.</p>
+                    <input type="file" id="file-upload" accept=".txt,.pdf" class="block w-full text-sm text-gray-400
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-red-50 file:text-red-700
+                        hover:file:bg-red-100
+                    "/>
+                    <p id="error-message" class="text-red-500 mt-2"></p>
+                </div>
+
+                <!-- Container for the dynamically generated tables -->
+                <div id="tables-container" class="mt-8"></div>
+            </main>
+        </div>
     </div>
 
     <script>
