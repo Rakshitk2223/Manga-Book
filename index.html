@@ -27,40 +27,27 @@
     </header>
 
     <main class="container mx-auto mt-10 p-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
-                <h2 class="text-2xl font-semibold mb-4">Upload Your Comic Data</h2>
-                <p class="mb-4">Upload a `.txt` file with each comic on a new line, formatted as `Comic Title, Genre`.</p>
-                <input type="file" id="file-upload" accept=".txt" class="block w-full text-sm text-gray-400
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded-full file:border-0
-                    file:text-sm file:font-semibold
-                    file:bg-red-50 file:text-red-700
-                    hover:file:bg-red-100
-                "/>
-                <p id="error-message" class="text-red-500 mt-2"></p>
-            </div>
-
-            <div id="summary-section" class="bg-gray-800 p-6 rounded-lg shadow-lg hidden">
-                <h2 class="text-2xl font-semibold mb-4">Summary</h2>
-                <p class="text-lg">Total Number of Comics: <span id="total-comics" class="font-bold netflix-red-text">0</span></p>
-            </div>
+        <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+            <h2 class="text-2xl font-semibold mb-4">Upload Your Comic Data</h2>
+            <p class="mb-4">Upload a `.txt` file with headings and entries. Each entry should be on a new line, formatted as `Name ChapterCount`.</p>
+            <input type="file" id="file-upload" accept=".txt" class="block w-full text-sm text-gray-400
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-full file:border-0
+                file:text-sm file:font-semibold
+                file:bg-red-50 file:text-red-700
+                hover:file:bg-red-100
+            "/>
+            <p id="error-message" class="text-red-500 mt-2"></p>
         </div>
 
-        <div id="chart-section" class="bg-gray-800 p-6 rounded-lg shadow-lg mt-8 hidden">
-            <h2 class="text-2xl font-semibold mb-4">Genre Distribution</h2>
-            <canvas id="genre-chart"></canvas>
-        </div>
+        <!-- Container for the dynamically generated tables -->
+        <div id="tables-container" class="mt-8"></div>
     </main>
 
     <script>
         const fileUpload = document.getElementById('file-upload');
         const errorMessage = document.getElementById('error-message');
-        const summarySection = document.getElementById('summary-section');
-        const totalComics = document.getElementById('total-comics');
-        const chartSection = document.getElementById('chart-section');
-        const genreChartCanvas = document.getElementById('genre-chart');
-        let genreChart;
+        const tablesContainer = document.getElementById('tables-container');
 
         fileUpload.addEventListener('change', (event) => {
             const file = event.target.files[0];
@@ -71,8 +58,7 @@
 
             if (file.type !== 'text/plain') {
                 errorMessage.textContent = 'Error: Please upload a .txt file.';
-                summarySection.classList.add('hidden');
-                chartSection.classList.add('hidden');
+                tablesContainer.innerHTML = ''; // Clear previous tables
                 return;
             }
 
@@ -87,75 +73,98 @@
         });
 
         function processData(data) {
-            const lines = data.split('\n').filter(line => line.trim() !== '');
+            const lines = data.split(/\r?\n/).filter(line => line.trim() !== '');
 
             if (lines.length === 0) {
                 errorMessage.textContent = 'File is empty or contains no valid data.';
-                summarySection.classList.add('hidden');
-                chartSection.classList.add('hidden');
+                tablesContainer.innerHTML = '';
                 return;
             }
 
-            const comics = lines.map(line => {
-                const [title, genre] = line.split(',').map(item => item.trim());
-                return { title, genre };
-            }).filter(comic => comic.title && comic.genre);
+            const categories = {};
+            let currentCategory = null;
 
-            totalComics.textContent = comics.length;
-            summarySection.classList.remove('hidden');
+            lines.forEach(line => {
+                const trimmedLine = line.trim();
+                // Regex to find a name (can include spaces) and a number at the end of the line.
+                const entryMatch = trimmedLine.match(/^(.*[a-zA-Z].*)\s+(\d+)$/);
 
-            const genreCounts = comics.reduce((acc, comic) => {
-                acc[comic.genre] = (acc[comic.genre] || 0) + 1;
-                return acc;
-            }, {});
-
-            updateChart(genreCounts);
-        }
-
-        function updateChart(genreData) {
-            chartSection.classList.remove('hidden');
-            const labels = Object.keys(genreData);
-            const data = Object.values(genreData);
-
-            if (genreChart) {
-                genreChart.destroy();
-            }
-
-            genreChart = new Chart(genreChartCanvas, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Number of Comics',
-                        data: data,
-                        backgroundColor: 'rgba(229, 9, 20, 0.8)',
-                        borderColor: 'rgba(229, 9, 20, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                color: '#fff'
-                            }
-                        },
-                        x: {
-                            ticks: {
-                                color: '#fff'
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            labels: {
-                                color: '#fff'
-                            }
-                        }
+                if (entryMatch) {
+                    // This is a valid entry with a name and chapter count.
+                    if (!currentCategory) {
+                        // Entries found before any category was defined.
+                        // We can assign them to a default category.
+                        currentCategory = "Uncategorized";
+                        categories[currentCategory] = [];
+                    }
+                    const name = entryMatch[1].trim();
+                    const chapters = parseInt(entryMatch[2], 10);
+                    categories[currentCategory].push({ name, chapters });
+                } else {
+                    // This line does not end with a number, so treat it as a new category heading.
+                    currentCategory = trimmedLine;
+                    if (!categories[currentCategory]) {
+                        categories[currentCategory] = [];
                     }
                 }
             });
+            
+            renderTables(categories);
+        }
+
+        function renderTables(categories) {
+            // Clear any existing tables
+            tablesContainer.innerHTML = '';
+
+            for (const categoryName in categories) {
+                const entries = categories[categoryName];
+
+                // Create a container for the table
+                const tableWrapper = document.createElement('div');
+                tableWrapper.className = 'bg-gray-800 p-6 rounded-lg shadow-lg mt-8';
+
+                // Add the category title
+                const title = document.createElement('h2');
+                title.className = 'text-2xl font-semibold mb-4 netflix-red-text';
+                title.textContent = categoryName;
+                tableWrapper.appendChild(title);
+
+                if (entries.length > 0) {
+                    // Create the table element
+                    const table = document.createElement('table');
+                    table.className = 'w-full text-left';
+
+                    // Create table header
+                    const thead = document.createElement('thead');
+                    thead.innerHTML = `
+                        <tr class="border-b border-gray-600">
+                            <th class="p-2">Name</th>
+                            <th class="p-2 text-right">Chapters Read</th>
+                        </tr>
+                    `;
+                    table.appendChild(thead);
+
+                    // Create table body and rows
+                    const tbody = document.createElement('tbody');
+                    entries.forEach(entry => {
+                        const row = document.createElement('tr');
+                        row.className = 'border-b border-gray-700';
+                        row.innerHTML = `
+                            <td class="p-2">${entry.name}</td>
+                            <td class="p-2 text-right">${entry.chapters}</td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    table.appendChild(tbody);
+                    tableWrapper.appendChild(table);
+                } else {
+                    const noEntriesMessage = document.createElement('p');
+                    noEntriesMessage.textContent = "No entries with chapter counts in this category.";
+                    tableWrapper.appendChild(noEntriesMessage);
+                }
+
+                tablesContainer.appendChild(tableWrapper);
+            }
         }
     </script>
 </body>
