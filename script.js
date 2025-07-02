@@ -5,6 +5,7 @@ const fileUpload = document.getElementById('file-upload');
 const errorMessage = document.getElementById('error-message');
 const tablesContainer = document.getElementById('tables-container');
 const totalCountFooter = document.getElementById('total-count-footer');
+const uploadContainer = document.getElementById('upload-container');
 
 const sidebar = document.getElementById('sidebar');
 const menuBtn = document.getElementById('menu-btn');
@@ -129,6 +130,7 @@ function processData(data) {
 }
 
 function renderTablesAndSidebar(categories) {
+    uploadContainer.style.display = 'none'; // Hide the upload container
     tablesContainer.innerHTML = '';
     sidebarLinks.innerHTML = '';
     let totalEntries = 0;
