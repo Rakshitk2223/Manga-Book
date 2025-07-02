@@ -1,198 +1,389 @@
-// Set the worker source for PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
+// Wait for the DOM to be fully loaded before running the script
+document.addEventListener('DOMContentLoaded', () => {
 
-const fileUpload = document.getElementById('file-upload');
-const errorMessage = document.getElementById('error-message');
-const tablesContainer = document.getElementById('tables-container');
-const totalCountFooter = document.getElementById('total-count-footer');
-const uploadContainer = document.getElementById('upload-container');
+    // --- Element Selections ---
+    const fileInput = document.getElementById('file-upload');
+    const fileInputSidebar = document.getElementById('file-input-sidebar');
+    const errorMessage = document.getElementById('error-message');
+    const tablesContainer = document.getElementById('tables-container');
+    const totalCountDisplay = document.getElementById('total-count-display');
+    const uploadContainer = document.getElementById('upload-container');
+    const sidebar = document.getElementById('sidebar');
+    const menuBtn = document.getElementById('menu-btn');
+    const overlay = document.getElementById('overlay');
+    const sidebarLinks = document.getElementById('sidebar-links');
+    const bgToggleBtn = document.getElementById('bg-toggle-btn');
+    const downloadContainer = document.getElementById('download-container');
+    const downloadTxtBtn = document.getElementById('download-txt-btn');
+    const downloadPdfBtn = document.getElementById('download-pdf-btn');
+    const sidebarUploadContainer = document.getElementById('sidebar-upload-container');
+    const mainContent = document.getElementById('main-content');
 
-const sidebar = document.getElementById('sidebar');
-const menuBtn = document.getElementById('menu-btn');
-const overlay = document.getElementById('overlay');
-const sidebarLinks = document.getElementById('sidebar-links');
-
-// Define the fixed list of headings
-const PREDEFINED_HEADINGS = ['Manga', 'Manhwa', 'Manhua', 'OG Manhwa', 'OG Manhua', 'NG Manhwa', 'NG Manhua', 'Ero', 'To read', 'Incomplete'];
-
-// --- Background Image Logic ---
-const bgToggleBtn = document.getElementById('bg-toggle-btn');
-const backgroundImages = ['Background/bg1.jpeg', 'Background/bg2.jpeg', 'Background/bg3.jpeg'];
-let currentBgIndex = 0;
-
-bgToggleBtn.addEventListener('click', () => {
-    currentBgIndex = (currentBgIndex + 1) % backgroundImages.length;
-    document.body.style.backgroundImage = `url('${backgroundImages[currentBgIndex]}')`;
-});
-
-
-// --- Sidebar Logic ---
-function toggleSidebar() {
-    sidebar.classList.toggle('-translate-x-full');
-    overlay.classList.toggle('hidden');
-}
-
-menuBtn.addEventListener('click', (e) => {
-    e.stopPropagation(); // Prevent click from immediately closing sidebar if other listeners exist
-    toggleSidebar();
-});
-
-overlay.addEventListener('click', toggleSidebar);
-
-sidebarLinks.addEventListener('click', (e) => {
-    if (e.target.tagName === 'A' && e.target.href) {
-        // Smooth scroll to the section
-        const targetId = e.target.getAttribute('href').substring(1);
-        const targetElement = document.getElementById(targetId);
-        if (targetElement) {
-            targetElement.scrollIntoView({ behavior: 'smooth' });
-        }
-        // Close sidebar after navigation
-        toggleSidebar();
-    }
-});
-
-
-// --- File Processing Logic ---
-fileUpload.addEventListener('change', (event) => {
-    const file = event.target.files[0];
-
-    if (!file) return;
-
-    const fileType = file.type;
-    if (fileType !== 'text/plain' && fileType !== 'application/pdf') {
-        errorMessage.textContent = 'Error: Please upload a .txt or .pdf file.';
-        tablesContainer.innerHTML = '';
-        sidebarLinks.innerHTML = '';
-        totalCountFooter.style.display = 'none';
-        return;
+    // Set the worker source for PDF.js
+    if (window.pdfjsLib) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
     }
 
-    errorMessage.textContent = '';
-    const reader = new FileReader();
+    // --- Global Data Store ---
+    let categoriesData = {};
 
-    if (fileType === 'text/plain') {
-        reader.onload = (e) => processData(e.target.result);
-        reader.readAsText(file);
-    } else if (fileType === 'application/pdf') {
-        reader.onload = (e) => {
-            const typedarray = new Uint8Array(e.target.result);
-            pdfjsLib.getDocument(typedarray).promise.then(pdf => {
-                const pagePromises = Array.from({ length: pdf.numPages }, (_, i) => 
-                    pdf.getPage(i + 1).then(page => 
-                        page.getTextContent().then(textContent => 
-                            textContent.items.map(item => item.str).join(' ')
-                        )
-                    )
-                );
-                Promise.all(pagePromises).then(pageTexts => {
-                    processData(pageTexts.join('\n'));
-                });
-            });
-        };
-        reader.readAsArrayBuffer(file);
-    }
-});
+    // --- UI Interaction Logic ---
 
-function processData(data) {
-    const lines = data.split(/\r?\n/).filter(line => line.trim() !== '');
+    // Background Image Toggle
+    const backgroundImages = ['Background/bg1.jpeg', 'Background/bg2.jpeg', 'Background/bg3.jpeg'];
+    let currentBgIndex = 0;
+    document.body.style.backgroundImage = `url('${backgroundImages[0]}')`; // Set initial background
 
-    if (lines.length === 0) {
-        errorMessage.textContent = 'File is empty or contains no valid data.';
-        tablesContainer.innerHTML = '';
-        sidebarLinks.innerHTML = '';
-        totalCountFooter.style.display = 'none';
-        return;
+    function toggleBackground() {
+        currentBgIndex = (currentBgIndex + 1) % backgroundImages.length;
+        document.body.style.backgroundImage = `url('${backgroundImages[currentBgIndex]}')`;
     }
 
-    const categories = PREDEFINED_HEADINGS.reduce((acc, h) => ({...acc, [h]: [] }), {});
-    let currentCategory = null;
-
-    lines.forEach(line => {
-        const trimmedLine = line.trim();
-        const isHeading = PREDEFINED_HEADINGS.find(h => h.toLowerCase() === trimmedLine.toLowerCase());
-
-        if (isHeading) {
-            currentCategory = isHeading;
+    // Sidebar Toggle
+    function toggleSidebar() {
+        const isOpen = !sidebar.classList.contains('-translate-x-full');
+        sidebar.classList.toggle('-translate-x-full');
+        overlay.classList.toggle('hidden');
+        if (isOpen) {
+            mainContent.classList.remove('ml-64');
         } else {
-            const entryMatch = trimmedLine.match(/^\[(.*?)\s+(Ch\s+\d+)\]$/i);
-            if (entryMatch && currentCategory) {
-                const name = entryMatch[1].trim();
-                const chapters = entryMatch[2];
-                if (name) {
-                    categories[currentCategory].push({ name, chapters });
+            mainContent.classList.add('ml-64');
+        }
+    }
+
+    menuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleSidebar();
+    });
+
+    overlay.addEventListener('click', toggleSidebar);
+
+    sidebarLinks.addEventListener('click', (e) => {
+        if (e.target.tagName === 'A' && e.target.hash) {
+            e.preventDefault();
+            const targetElement = document.querySelector(e.target.hash);
+            if (targetElement) {
+                targetElement.scrollIntoView({ behavior: 'smooth' });
+            }
+            toggleSidebar();
+        }
+    });
+
+    // --- File Processing Logic ---
+    function handleFile(file) {
+        if (!file) return;
+
+        const fileType = file.type;
+        if (fileType !== 'text/plain' && fileType !== 'application/pdf') {
+            errorMessage.textContent = 'Error: Please upload a .txt or .pdf file.';
+            return;
+        }
+
+        errorMessage.textContent = '';
+        const reader = new FileReader();
+
+        if (fileType === 'text/plain') {
+            reader.onload = (e) => processData(e.target.result);
+            reader.readAsText(file);
+        } else if (fileType === 'application/pdf') {
+            reader.onload = (e) => {
+                const typedarray = new Uint8Array(e.target.result);
+                pdfjsLib.getDocument(typedarray).promise.then(pdf => {
+                    const pagePromises = Array.from({ length: pdf.numPages }, (_, i) =>
+                        pdf.getPage(i + 1).then(page =>
+                            page.getTextContent().then(textContent =>
+                                textContent.items.map(item => item.str).join(' ')
+                            )
+                        )
+                    );
+                    Promise.all(pagePromises).then(pageTexts => {
+                        processData(pageTexts.join('\n'));
+                    });
+                }).catch(err => {
+                    errorMessage.textContent = 'Error processing PDF file.';
+                    console.error(err);
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        }
+    }
+
+    fileInput.addEventListener('change', (event) => handleFile(event.target.files[0]));
+    fileInputSidebar.addEventListener('change', (event) => handleFile(event.target.files[0]));
+
+    function processData(data) {
+        const lines = data.split(/\r?\n/).filter(line => line.trim() !== '');
+        const PREDEFINED_HEADINGS = ['Manga', 'Manhwa', 'Manhua', 'OG Manhwa', 'OG Manhua', 'NG Manhwa', 'NG Manhua', 'Ero', 'To read', 'Incomplete'];
+
+        if (lines.length === 0) {
+            errorMessage.textContent = 'File is empty or contains no valid data.';
+            return;
+        }
+
+        const parsedData = PREDEFINED_HEADINGS.reduce((acc, h) => ({ ...acc, [h]: [] }), {});
+        let currentCategory = null;
+
+        lines.forEach(line => {
+            const trimmedLine = line.trim();
+            const isHeading = PREDEFINED_HEADINGS.find(h => h.toLowerCase() === trimmedLine.toLowerCase());
+
+            if (isHeading) {
+                currentCategory = isHeading;
+            } else {
+                // Updated regex to be more flexible with chapter format, allowing decimals
+                const entryMatch = trimmedLine.match(/^\s*\[(.*?)(?:Ch\s*([\d.]+))?\s*\]\s*$/i);
+                if (entryMatch && currentCategory) {
+                    const name = entryMatch[1].trim();
+                    const chapter = entryMatch[2] ? parseFloat(entryMatch[2]) : 'N/A';
+                    if (name) {
+                        parsedData[currentCategory].push({ name, chapter });
+                    }
                 }
             }
-        }
-    });
-    
-    renderTablesAndSidebar(categories);
-}
+        });
+        categoriesData = parsedData;
+        renderAllTables();
+        updateSidebarLinks();
+        updateTotalCount();
 
-function renderTablesAndSidebar(categories) {
-    uploadContainer.style.display = 'none'; // Hide the upload container
-    tablesContainer.innerHTML = '';
-    sidebarLinks.innerHTML = '';
-    let totalEntries = 0;
-
-    PREDEFINED_HEADINGS.forEach(categoryName => {
-        const entries = categories[categoryName];
-
-        if (entries && entries.length > 0) {
-            totalEntries += entries.length;
-            const categoryId = `category-${categoryName.replace(/\s+/g, '-')}`;
-
-            // Add link to sidebar
-            const listItem = document.createElement('li');
-            listItem.innerHTML = `<a href="#${categoryId}" class="block text-gray-300 hover:text-white hover:bg-gray-700 p-2 rounded-md transition-colors duration-200">${categoryName}</a>`;
-            sidebarLinks.appendChild(listItem);
-
-            // Create and render the table
-            const tableWrapper = document.createElement('div');
-            tableWrapper.id = categoryId;
-            tableWrapper.className = 'table-container-glass p-6 rounded-lg shadow-lg mt-8 scroll-mt-20'; // scroll-mt-20 to offset for header
-
-            const title = document.createElement('h2');
-            title.className = 'text-2xl font-semibold mb-4 netflix-red-text';
-            title.textContent = categoryName;
-            tableWrapper.appendChild(title);
-
-            const table = document.createElement('table');
-            table.className = 'w-full text-left';
-
-            const thead = document.createElement('thead');
-            thead.innerHTML = `
-                <tr class="border-b border-gray-600">
-                    <th class="p-2 w-16">S.No</th>
-                    <th class="p-2">Name</th>
-                    <th class="p-2 text-right">Chapters Read</th>
-                </tr>
-            `;
-            table.appendChild(thead);
-
-            const tbody = document.createElement('tbody');
-            entries.forEach((entry, index) => {
-                const row = document.createElement('tr');
-                row.className = 'border-b border-gray-700';
-                row.innerHTML = `
-                    <td class="p-2 text-white">${index + 1}</td>
-                    <td class="p-2 text-white"><div class="glass-container">${entry.name}</div></td>
-                    <td class="p-2 text-right text-white">${entry.chapters}</td>
-                `;
-                tbody.appendChild(row);
-            });
-            table.appendChild(tbody);
-            tableWrapper.appendChild(table);
-            
-            tablesContainer.appendChild(tableWrapper);
-        }
-    });
-
-    // Update and display the total count footer
-    if (totalEntries > 0) {
-        totalCountFooter.textContent = `Total Read Manwha/Manga/Manhua : ${totalEntries}`;
-        totalCountFooter.style.display = 'block';
-    } else {
-        totalCountFooter.style.display = 'none';
+        // Show/hide relevant containers
+        uploadContainer.style.display = 'none';
+        sidebarUploadContainer.classList.remove('hidden');
+        downloadContainer.classList.remove('hidden');
     }
-}
+
+    function renderAllTables() {
+        tablesContainer.innerHTML = '';
+        Object.keys(categoriesData).forEach(categoryName => {
+            const entries = categoriesData[categoryName];
+            if (entries && entries.length > 0) {
+                const tableWrapper = document.createElement('div');
+                tableWrapper.id = `table-container-${categoryName.replace(/\s+/g, '-')}`;
+                tableWrapper.className = 'table-container-glass p-6 rounded-lg shadow-lg mt-8 scroll-mt-24';
+                tablesContainer.appendChild(tableWrapper);
+                renderTable(categoryName, entries);
+            }
+        });
+    }
+
+    function updateSidebarLinks() {
+        sidebarLinks.innerHTML = '';
+        Object.keys(categoriesData).forEach(categoryName => {
+            const entries = categoriesData[categoryName];
+            if (entries && entries.length > 0) {
+                const categoryId = `table-container-${categoryName.replace(/\s+/g, '-')}`;
+                const listItem = document.createElement('li');
+                listItem.innerHTML = `<a href="#${categoryId}" class="block text-gray-300 hover:text-white hover:bg-gray-700 p-2 rounded-md transition-colors duration-200">${categoryName}</a>`;
+                sidebarLinks.appendChild(listItem);
+            }
+        });
+    }
+
+    function updateTotalCount() {
+        let totalEntries = 0;
+        Object.values(categoriesData).forEach(entries => {
+            totalEntries += entries.length;
+        });
+        totalCountDisplay.textContent = `Total Manga: ${totalEntries}`;
+    }
+
+    /**
+     * Renders a single table for a given category.
+     * @param {string} category - The category name.
+     * @param {Array<Object>} entries - The list of entries for the category.
+     */
+    function renderTable(category, entries) {
+        const categoryId = category.replace(/\s+/g, '-');
+        const tableContainer = document.getElementById(`table-container-${categoryId}`);
+        if (!tableContainer) return;
+
+        // Sort entries by name
+        entries.sort((a, b) => a.name.localeCompare(b.name));
+
+        const tableHTML = `
+            <h2 id="${categoryId}" class="category-header text-2xl font-bold italic text-red-500 text-center mb-4 relative group">
+                ${category}
+                <button class="add-entry-btn absolute right-0 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-full text-sm opacity-0 group-hover:opacity-100 transition-opacity" data-category="${category}">+</button>
+            </h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full table-auto">
+                    <thead>
+                        <tr>
+                            <th class="px-4 py-2 text-center">S.No</th>
+                            <th class="px-4 py-2 text-left">Name</th>
+                            <th class="px-4 py-2 text-center">Chapter</th>
+                            <th class="px-4 py-2 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${entries.map((entry, index) => `
+                            <tr data-category="${category}" data-index="${index}">
+                                <td class="border-t border-gray-700 px-4 py-2 text-center">${index + 1}</td>
+                                <td class="border-t border-gray-700 px-4 py-2" contenteditable="true" data-field="name">
+                                    <div class="glass-container">${entry.name}</div>
+                                </td>
+                                <td class="border-t border-gray-700 px-4 py-2 text-center" contenteditable="true" data-field="chapter">${entry.chapter}</td>
+                                <td class="border-t border-gray-700 px-4 py-2 text-center">
+                                    <button class="delete-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs">Delete</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        tableContainer.innerHTML = tableHTML;
+    }
+
+    /**
+     * Adds a temporary row with input fields to a table for a new entry.
+     * @param {string} category - The category to add the new entry to.
+     */
+    function addNewEntryRow(category) {
+        const categoryId = category.replace(/\s+/g, '-');
+        const tableContainer = document.getElementById(`table-container-${categoryId}`);
+        if (!tableContainer) return;
+
+        const table = tableContainer.querySelector('table');
+        if (!table) return;
+
+        // Prevent adding multiple new rows to the same table
+        if (table.querySelector('.new-entry-row')) {
+            return;
+        }
+
+        const newRow = document.createElement('tr');
+        newRow.className = 'new-entry-row'; // Class to identify the temporary row
+        newRow.innerHTML = `
+            <td class="border-t border-gray-700 px-4 py-2 text-center">${table.rows.length}</td>
+            <td class="border-t border-gray-700 px-4 py-2"><input type="text" class="new-name-input bg-gray-800 text-white w-full p-1 rounded" placeholder="Name"></td>
+            <td class="border-t border-gray-700 px-4 py-2"><input type="text" inputmode="decimal" class="new-chapter-input bg-gray-800 text-white w-20 p-1 rounded" placeholder="Ch"></td>
+            <td class="border-t border-gray-700 px-4 py-2 text-center">
+                <button class="save-new-btn bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-xs" data-category="${category}">Save</button>
+                <button class="cancel-new-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-1 px-2 rounded text-xs ml-1">Cancel</button>
+            </td>
+        `;
+        table.tBodies[0].appendChild(newRow);
+        newRow.querySelector('.new-name-input').focus(); // Focus on the name input
+    }
+
+    // --- Data Update & Delete Logic ---
+    tablesContainer.addEventListener('focusout', (e) => {
+        const target = e.target.closest('td[contenteditable="true"]');
+        if (!target) return;
+
+        const row = target.closest('tr');
+        const { category, index, field } = row.dataset;
+
+        if (category && index !== undefined && field) {
+            let value = target.textContent.trim();
+            if (field === 'chapter') {
+                value = parseFloat(value) || 0;
+            }
+            categoriesData[category][index][field] = value;
+            updateTotalCount(); // In case an entry is cleared
+        }
+    });
+
+    tablesContainer.addEventListener('click', (e) => {
+        const target = e.target;
+
+        if (target.classList.contains('add-entry-btn')) {
+            const category = target.dataset.category;
+            addNewEntryRow(category);
+        } else if (target.classList.contains('delete-btn')) {
+            const row = target.closest('tr');
+            const category = row.dataset.category;
+            const index = parseInt(row.dataset.index, 10);
+
+            if (categoriesData[category]) {
+                categoriesData[category].splice(index, 1);
+                renderTable(category, categoriesData[category]);
+                updateTotalCount();
+            }
+        } else if (target.classList.contains('save-new-btn')) {
+            const category = target.dataset.category;
+            const row = target.closest('tr');
+            const nameInput = row.querySelector('.new-name-input');
+            const chapterInput = row.querySelector('.new-chapter-input');
+            const name = nameInput.value.trim();
+            const chapter = chapterInput.value.trim();
+
+            if (name && chapter && !isNaN(chapter)) {
+                const newEntry = { name, chapter: parseFloat(chapter) };
+                if (categoriesData[category]) {
+                    categoriesData[category].push(newEntry);
+                    renderTable(category, categoriesData[category]);
+                    updateTotalCount();
+                }
+            } else {
+                alert('Please fill in both name and a valid chapter number.');
+            }
+        } else if (target.classList.contains('cancel-new-btn')) {
+            const row = target.closest('tr');
+            row.remove();
+        }
+    });
+
+    // --- Download Logic ---
+    function generateTextContent() {
+        let content = '';
+        Object.keys(categoriesData).forEach(categoryName => {
+            const entries = categoriesData[categoryName];
+            if (entries && entries.length > 0) {
+                content += `${categoryName}\n\n`;
+                // Sort before generating text
+                entries.sort((a, b) => a.name.localeCompare(b.name));
+                entries.forEach(entry => {
+                    content += `[${entry.name} Ch ${entry.chapter}]\n`;
+                });
+                content += '\n';
+            }
+        });
+        return content;
+    }
+
+    downloadTxtBtn.addEventListener('click', () => {
+        const textContent = generateTextContent();
+        const blob = new Blob([textContent], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'manga-list.txt';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+
+    downloadPdfBtn.addEventListener('click', () => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        let y = 15;
+        const pageHeight = doc.internal.pageSize.height;
+
+        Object.keys(categoriesData).forEach(categoryName => {
+            const entries = categoriesData[categoryName];
+            if (entries && entries.length > 0) {
+                if (y > pageHeight - 20) { doc.addPage(); y = 15; }
+                doc.setFontSize(16);
+                doc.text(categoryName, 10, y);
+                y += 10;
+
+                doc.setFontSize(12);
+                // Sort before generating PDF
+                entries.sort((a, b) => a.name.localeCompare(b.name));
+                entries.forEach(entry => {
+                    if (y > pageHeight - 10) { doc.addPage(); y = 15; }
+                    doc.text(`[${entry.name} Ch ${entry.chapter}]`, 15, y);
+                    y += 7;
+                });
+                y += 5;
+            }
+        });
+        doc.save('manga-list.pdf');
+    });
+
+    // Add event listeners for buttons
+    bgToggleBtn.addEventListener('click', toggleBackground);
+});

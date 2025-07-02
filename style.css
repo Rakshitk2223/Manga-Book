@@ -87,9 +87,44 @@ body::before {
 }
 
 .table-container-glass {
-    background: rgba(17, 24, 39, 0.6); /* Equivalent to Tailwind's gray-900 with 60% opacity */
+    background: rgba(17, 24, 39, 0.4); /* Decreased opacity by 20% */
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     border: 1px solid rgba(255, 255, 255, 0.15);
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+.table-container-glass h2 {
+    font-weight: 800; /* bolder */
+    font-style: italic;
+    text-align: center;
+}
+
+.btn {
+    font-weight: bold;
+    padding: 0.25rem 0.75rem; /* py-1 px-3 */
+    border-radius: 9999px; /* rounded-full */
+    transition: background-color 0.2s;
+    font-size: 0.875rem; /* text-sm */
+    color: white;
+}
+
+.btn-delete {
+    background-color: #dc2626; /* red-600 */
+}
+
+.btn-delete:hover {
+    background-color: #b91c1c; /* red-700 */
+}
+
+.btn-save {
+    background-color: #16a34a; /* green-600 */
+}
+
+.btn-save:hover {
+    background-color: #15803d; /* green-700 */
+}
+
+#main-content {
+    padding-left: 4rem; /* Add padding to avoid overlap with fixed buttons */
 }
