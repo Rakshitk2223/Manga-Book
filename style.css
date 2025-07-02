@@ -1,13 +1,12 @@
 body {
     /* Set the background image */
-    background-image: url('Background.jpeg');
+    background-image: url('Background/bg1.jpeg');
     background-size: cover; /* Cover the entire page */
     background-position: center center; /* Center the image */
     background-attachment: fixed; /* Make the background fixed on scroll */
     background-repeat: no-repeat; /* Do not repeat the image */
 
     color: #fff;
-    padding-left: 5rem; /* Add padding to prevent content from overlapping with the fixed button */
     position: relative; /* Required for the overlay */
     z-index: 0;
 }
@@ -54,6 +53,19 @@ body::before {
     padding: 0.5rem; /* p-2 */
     transition: background-color 0.2s;
 }
+
+#bg-toggle-btn {
+    position: fixed;
+    top: calc(50% + 4rem); /* Position below the menu button */
+    left: 1rem; /* 16px */
+    transform: translateY(-50%);
+    z-index: 50;
+    background-color: rgba(31, 41, 55, 0.75); /* bg-gray-800 with opacity */
+    border-radius: 9999px; /* rounded-full */
+    padding: 0.5rem; /* p-2 */
+    transition: background-color 0.2s;
+}
+
 #total-count-footer {
     position: absolute;
     top: 50%;
@@ -62,4 +74,22 @@ body::before {
     color: #fff;
     font-size: 0.875rem;
     display: none; /* Hidden by default */
+}
+
+.glass-container {
+    background: rgba(255, 255, 255, 0.1); /* Semi-transparent white background */
+    backdrop-filter: blur(10px); /* Frosted glass effect */
+    -webkit-backdrop-filter: blur(10px); /* For Safari */
+    border-radius: 0.5rem; /* Rounded corners */
+    padding: 0.5rem; /* Padding inside the container */
+    border: 1px solid rgba(255, 255, 255, 0.2); /* Subtle border */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Soft shadow */
+}
+
+.table-container-glass {
+    background: rgba(17, 24, 39, 0.6); /* Equivalent to Tailwind's gray-900 with 60% opacity */
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
 }

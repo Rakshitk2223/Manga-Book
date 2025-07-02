@@ -14,6 +14,17 @@ const sidebarLinks = document.getElementById('sidebar-links');
 // Define the fixed list of headings
 const PREDEFINED_HEADINGS = ['Manga', 'Manhwa', 'Manhua', 'OG Manhwa', 'OG Manhua', 'NG Manhwa', 'NG Manhua', 'Ero', 'To read', 'Incomplete'];
 
+// --- Background Image Logic ---
+const bgToggleBtn = document.getElementById('bg-toggle-btn');
+const backgroundImages = ['Background/bg1.jpeg', 'Background/bg2.jpeg', 'Background/bg3.jpeg'];
+let currentBgIndex = 0;
+
+bgToggleBtn.addEventListener('click', () => {
+    currentBgIndex = (currentBgIndex + 1) % backgroundImages.length;
+    document.body.style.backgroundImage = `url('${backgroundImages[currentBgIndex]}')`;
+});
+
+
 // --- Sidebar Logic ---
 function toggleSidebar() {
     sidebar.classList.toggle('-translate-x-full');
@@ -137,7 +148,7 @@ function renderTablesAndSidebar(categories) {
             // Create and render the table
             const tableWrapper = document.createElement('div');
             tableWrapper.id = categoryId;
-            tableWrapper.className = 'bg-gray-800 p-6 rounded-lg shadow-lg mt-8 scroll-mt-20'; // scroll-mt-20 to offset for header
+            tableWrapper.className = 'table-container-glass p-6 rounded-lg shadow-lg mt-8 scroll-mt-20'; // scroll-mt-20 to offset for header
 
             const title = document.createElement('h2');
             title.className = 'text-2xl font-semibold mb-4 netflix-red-text';
@@ -163,7 +174,7 @@ function renderTablesAndSidebar(categories) {
                 row.className = 'border-b border-gray-700';
                 row.innerHTML = `
                     <td class="p-2 text-white">${index + 1}</td>
-                    <td class="p-2 text-white">${entry.name}</td>
+                    <td class="p-2 text-white"><div class="glass-container">${entry.name}</div></td>
                     <td class="p-2 text-right text-white">${entry.chapters}</td>
                 `;
                 tbody.appendChild(row);
