@@ -137,38 +137,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function processData(data) {
         const lines = data.split(/\r?\n/).filter(line => line.trim() !== '');
-        const PREDEFINED_HEADINGS = ['Manga', 'Manhwa', 'Manhua', 'OG Manhwa', 'OG Manhua', 'NG Manhwa', 'NG Manhua', 'Ero', 'To read', 'Incomplete'];
 
         if (lines.length === 0) {
             errorMessage.textContent = 'File is empty or contains no valid data.';
             return;
         }
 
-        const parsedData = PREDEFINED_HEADINGS.reduce((acc, h) => ({ ...acc, [h]: [] }), {});
+        const parsedData = {};
         let currentCategory = null;
+        // Regex to match the new format: [Name Ch Chapter](URL)
+        const entryRegex = /^\s*\[(.+?)\s+Ch\s+([\d.]+)\]\((.+)\)\s*$/i;
 
         lines.forEach(line => {
             const trimmedLine = line.trim();
-            const isHeading = PREDEFINED_HEADINGS.find(h => h.toLowerCase() === trimmedLine.toLowerCase());
+            const entryMatch = trimmedLine.match(entryRegex);
 
-            if (isHeading) {
-                currentCategory = isHeading;
-            } else {
-                // Updated regex to capture name, chapter, and an optional image URL
-                const entryMatch = trimmedLine.match(/^\s*\[(.*?)(?:Ch\s*([\d.]+))?\s*\](?:\((.*)\))?\s*$/i);
-                if (entryMatch && currentCategory) {
+            if (entryMatch) {
+                // This is a manga/manhwa entry
+                if (currentCategory) {
                     const name = entryMatch[1].trim();
-                    const chapter = entryMatch[2] ? parseFloat(entryMatch[2]) : 'N/A';
-                    const imageUrl = entryMatch[3] ? entryMatch[3].trim() : ''; // Captured image URL
+                    const chapter = parseFloat(entryMatch[2]);
+                    const imageUrl = entryMatch[3].trim();
 
                     if (name) {
                         parsedData[currentCategory].push({ name, chapter, imageUrl });
                     }
+                } else {
+                    // This case handles entries that appear before any category header.
+                    // You might want to log this or assign them to a default category.
+                    console.warn(`Found an entry without a category: ${trimmedLine}`);
+                }
+            } else if (trimmedLine) {
+                // Any non-matching, non-empty line is considered a category header
+                currentCategory = trimmedLine;
+                if (!parsedData[currentCategory]) {
+                    parsedData[currentCategory] = [];
                 }
             }
         });
+
         categoriesData = parsedData;
-        // Instead of rendering tables immediately, fetch the images first
+        
+        // This function will now primarily render the data, as image URLs are provided.
+        // It will still fetch covers for any entries that might have a placeholder URL.
         fetchImagesAndRender();
 
         // Show/hide relevant containers
