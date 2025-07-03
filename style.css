@@ -42,89 +42,17 @@ body::before {
 ::-webkit-scrollbar-thumb:hover {
     background: #e50914;
 }
-#menu-btn {
-    position: fixed;
-    top: 50%;
-    left: 1rem; /* 16px */
-    transform: translateY(-50%);
-    z-index: 50;
-    background-color: rgba(31, 41, 55, 0.75); /* bg-gray-800 with opacity */
-    border-radius: 9999px; /* rounded-full */
-    padding: 0.5rem; /* p-2 */
-    transition: background-color 0.2s;
+
+/* Notification Styling */
+#notification-container .notification {
+    transition: all 0.5s ease-in-out;
 }
 
-#bg-toggle-btn {
-    position: fixed;
-    top: calc(50% + 4rem); /* Position below the menu button */
-    left: 1rem; /* 16px */
-    transform: translateY(-50%);
-    z-index: 50;
-    background-color: rgba(31, 41, 55, 0.75); /* bg-gray-800 with opacity */
-    border-radius: 9999px; /* rounded-full */
-    padding: 0.5rem; /* p-2 */
-    transition: background-color 0.2s;
-}
-
-#total-count-footer {
-    position: absolute;
-    top: 50%;
-    right: 1rem;
-    transform: translateY(-50%);
-    color: #fff;
-    font-size: 0.875rem;
-    display: none; /* Hidden by default */
-}
-
-.glass-container {
-    background: rgba(255, 255, 255, 0.1); /* Semi-transparent white background */
-    backdrop-filter: blur(10px); /* Frosted glass effect */
-    -webkit-backdrop-filter: blur(10px); /* For Safari */
-    border-radius: 0.5rem; /* Rounded corners */
-    padding: 0.5rem; /* Padding inside the container */
-    border: 1px solid rgba(255, 255, 255, 0.2); /* Subtle border */
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Soft shadow */
-}
-
-.table-container-glass {
-    background: rgba(17, 24, 39, 0.2);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-}
-
-.table-container-glass h2 {
-    font-weight: 800; /* bolder */
-    font-style: italic;
-    text-align: center;
-}
-
-.btn {
-    font-weight: bold;
-    padding: 0.25rem 0.75rem; /* py-1 px-3 */
-    border-radius: 9999px; /* rounded-full */
-    transition: background-color 0.2s;
-    font-size: 0.875rem; /* text-sm */
-    color: white;
-}
-
-.btn-delete {
-    background-color: #dc2626; /* red-600 */
-}
-
-.btn-delete:hover {
-    background-color: #b91c1c; /* red-700 */
-}
-
-.btn-save {
-    background-color: #16a34a; /* green-600 */
-}
-
-.btn-save:hover {
-    background-color: #15803d; /* green-700 */
+#notification-container .notification.fade-out {
+    opacity: 0;
+    transform: translateX(100%);
 }
 
 #main-content {
-    padding-left: 4rem; /* Add padding to avoid overlap with fixed buttons */
+    padding-left: 5rem; /* Increased padding to avoid overlap with the new button container */
 }

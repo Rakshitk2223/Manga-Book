@@ -19,10 +19,42 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadJsonBtn = document.getElementById('download-json-btn'); // Get the button from HTML
     const sidebarUploadContainer = document.getElementById('sidebar-upload-container');
     const mainContent = document.getElementById('main-content');
+    const createNewBtn = document.getElementById('create-new-btn');
+    const createContainer = document.getElementById('create-container');
+    const newCategoryInput = document.getElementById('new-category-input');
+    const addCategoryBtn = document.getElementById('add-category-btn');
+    const addCategorySidebarBtn = document.getElementById('add-category-sidebar-btn');
+    const notificationContainer = document.getElementById('notification-container');
 
     // Set the worker source for PDF.js
     if (window.pdfjsLib) {
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
+    }
+
+    // --- Notification System ---
+    function showNotification(message, type = 'info') {
+        if (!notificationContainer) return;
+
+        const bgColor = {
+            info: 'bg-blue-500',
+            success: 'bg-green-500',
+            error: 'bg-red-500',
+            warn: 'bg-yellow-500'
+        }[type];
+
+        const notification = document.createElement('div');
+        notification.className = `notification ${bgColor} text-white p-4 rounded-lg shadow-lg mb-2`;
+        notification.textContent = message;
+
+        notificationContainer.appendChild(notification);
+
+        // Trigger fade out and remove after a delay
+        setTimeout(() => {
+            notification.classList.add('fade-out');
+            notification.addEventListener('transitionend', () => {
+                notification.remove();
+            });
+        }, 3000); // Notification visible for 3 seconds
     }
 
     // --- Global Data Store ---
@@ -31,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- UI Interaction Logic ---
 
     // Background Image Toggle
-    const backgroundImages = ['Background/bg1.jpeg', 'Background/bg2.jpeg', 'Background/bg3.jpeg'];
+    const backgroundImages = ['Background/bg1.jpeg', 'Background/bg2.jpeg', 'Background/bg3.jpeg', 'Background/bg4.jpeg', 'Background/bg5.jpeg', 'Background/bg6.jpeg'];
     let currentBgIndex = 0;
     document.body.style.backgroundImage = `url('${backgroundImages[0]}')`; // Set initial background
 
@@ -52,6 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Event Listeners ---
     menuBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         toggleSidebar();
@@ -60,13 +93,91 @@ document.addEventListener('DOMContentLoaded', () => {
     overlay.addEventListener('click', toggleSidebar);
 
     sidebarLinks.addEventListener('click', (e) => {
-        if (e.target.tagName === 'A' && e.target.hash) {
+        const target = e.target;
+
+        // Handle category reordering from sidebar
+        if (target.classList.contains('sidebar-move-up-btn') || target.classList.contains('sidebar-move-down-btn')) {
+            e.stopPropagation(); // Prevent the link click
+            const category = target.dataset.category;
+            const direction = target.classList.contains('sidebar-move-up-btn') ? -1 : 1;
+            const categoryKeys = Object.keys(categoriesData);
+            const currentIndex = categoryKeys.indexOf(category);
+            const newIndex = currentIndex + direction;
+
+            if (newIndex >= 0 && newIndex < categoryKeys.length) {
+                // Swap the keys in the array
+                [categoryKeys[currentIndex], categoryKeys[newIndex]] = [categoryKeys[newIndex], categoryKeys[currentIndex]];
+                
+                // Rebuild the categoriesData object to reflect the new order
+                const newCategoriesData = {};
+                categoryKeys.forEach(key => {
+                    newCategoriesData[key] = categoriesData[key];
+                });
+                categoriesData = newCategoriesData;
+
+                // Re-render everything to show the new order
+                renderAllTables();
+                updateSidebarLinks();
+            }
+            return;
+        }
+
+        if (target.tagName === 'A' && e.target.hash) {
             e.preventDefault();
             const targetElement = document.querySelector(e.target.hash);
             if (targetElement) {
                 targetElement.scrollIntoView({ behavior: 'smooth' });
             }
             toggleSidebar();
+        }
+    });
+
+    bgToggleBtn.addEventListener('click', toggleBackground);
+
+    fileInput.addEventListener('change', (event) => handleFile(event.target.files[0]));
+    fileInputSidebar.addEventListener('change', (event) => handleFile(event.target.files[0]));
+
+    createNewBtn.addEventListener('click', () => {
+        // Hide upload container and show the creation UI
+        uploadContainer.style.display = 'none';
+        createContainer.classList.remove('hidden');
+        
+        // Reset data and UI
+        categoriesData = {};
+        renderAllTables();
+        updateSidebarLinks();
+        updateTotalCount();
+
+        // Show sidebar upload and download options
+        sidebarUploadContainer.classList.remove('hidden');
+        downloadContainer.classList.remove('hidden');
+        addCategorySidebarBtn.classList.remove('hidden');
+    });
+
+    addCategoryBtn.addEventListener('click', () => {
+        const categoryName = newCategoryInput.value.trim();
+        if (categoryName && !categoriesData[categoryName]) {
+            categoriesData[categoryName] = [];
+            renderAllTables(); // Re-render to show the new empty table
+            updateSidebarLinks();
+            newCategoryInput.value = ''; // Clear input
+            showNotification(`Category '${categoryName}' created successfully.`, 'success');
+            // Scroll to the new table
+            const newTableId = `table-container-${categoryName.replace(/\s+/g, ' ')}`;
+            document.getElementById(newTableId)?.scrollIntoView({ behavior: 'smooth' });
+        } else if (categoriesData[categoryName]) {
+            showNotification('Category already exists.', 'error');
+        } 
+    });
+
+    addCategorySidebarBtn.addEventListener('click', () => {
+        const isHidden = createContainer.classList.contains('hidden');
+        if (isHidden) {
+            createContainer.classList.remove('hidden');
+            createContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            newCategoryInput.focus();
+        } else {
+            createContainer.classList.add('hidden');
         }
     });
 
@@ -77,6 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const fileType = file.type;
         if (fileType !== 'text/plain' && fileType !== 'application/pdf' && fileType !== 'application/json') {
             errorMessage.textContent = 'Error: Please upload a .txt, .pdf or .json file.';
+            showNotification('Invalid file type. Please upload .txt, .pdf, or .json.', 'error');
             return;
         }
 
@@ -122,6 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }).catch(err => {
                     errorMessage.textContent = 'Error processing PDF file.';
+                    showNotification('Error processing PDF file.', 'error');
                     console.error(err);
                 });
             };
@@ -131,9 +244,6 @@ document.addEventListener('DOMContentLoaded', () => {
             reader.readAsText(file);
         }
     }
-
-    fileInput.addEventListener('change', (event) => handleFile(event.target.files[0]));
-    fileInputSidebar.addEventListener('change', (event) => handleFile(event.target.files[0]));
 
     function processData(data) {
         const lines = data.split(/\r?\n/).filter(line => line.trim() !== '');
@@ -186,6 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
         uploadContainer.style.display = 'none';
         sidebarUploadContainer.classList.remove('hidden');
         downloadContainer.classList.remove('hidden');
+        addCategorySidebarBtn.classList.remove('hidden');
     }
 
     function processJsonData(jsonData) {
@@ -195,16 +306,19 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof parsedData === 'object' && parsedData !== null) {
                 categoriesData = parsedData;
                 fetchImagesAndRender(); // This will only fetch images for entries that are missing them
+                showNotification('JSON file loaded successfully!', 'success');
 
                 // Show/hide relevant containers
                 uploadContainer.style.display = 'none';
                 sidebarUploadContainer.classList.remove('hidden');
                 downloadContainer.classList.remove('hidden');
+                addCategorySidebarBtn.classList.remove('hidden');
             } else {
                 throw new Error('Invalid JSON format.');
             }
         } catch (error) {
             errorMessage.textContent = `Error processing JSON file: ${error.message}`;
+            showNotification(`Error: ${error.message}`, 'error');
             console.error(error);
         }
     }
@@ -227,6 +341,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Handle rate limiting or other API errors
                 if (response.status === 429) {
                     console.warn('Rate limited by Jikan API. Please wait before trying again.');
+                    showNotification('API rate limit hit. Please wait.', 'warn');
                 } else {
                     console.warn(`Jikan API request failed for "${mangaName}" with status: ${response.status}`);
                 }
@@ -253,7 +368,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function fetchImagesAndRender() {
-        tablesContainer.innerHTML = '<p class=\"text-white text-center text-lg\">Searching for cover images, please wait...</p>';
+        tablesContainer.innerHTML = '<p class="text-white text-center text-lg">Searching for cover images, please wait...</p>';
+        showNotification('Fetching cover images...', 'info');
         errorMessage.textContent = ''; // Clear previous errors
 
         const defaultImageUrl = 'https://shorturl.at/JpeLA';
@@ -283,6 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Optional: add a longer delay between chunks if still facing issues
                 await new Promise(resolve => setTimeout(resolve, 1000)); // 1-second delay between chunks
             }
+            showNotification('Finished fetching all images.', 'success');
         } else {
             // If no images need to be fetched, just render.
             console.log("No new images to fetch. Rendering from existing data.");
@@ -295,26 +412,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderAllTables() {
         tablesContainer.innerHTML = '';
-        Object.keys(categoriesData).forEach(categoryName => {
+        const categoryKeys = Object.keys(categoriesData);
+
+        categoryKeys.forEach((categoryName, index) => {
             const entries = categoriesData[categoryName];
-            if (entries && entries.length > 0) {
+            if (entries) {
                 const tableWrapper = document.createElement('div');
                 tableWrapper.id = `table-container-${categoryName.replace(/\s+/g, '-')}`;
                 tableWrapper.className = 'table-container-glass p-6 rounded-lg shadow-lg mt-8 scroll-mt-24';
                 tablesContainer.appendChild(tableWrapper);
-                renderTable(categoryName, entries);
+                // Pass index and total length for arrow visibility
+                renderTable(categoryName, entries, index, categoryKeys.length);
             }
         });
     }
 
     function updateSidebarLinks() {
         sidebarLinks.innerHTML = '';
-        Object.keys(categoriesData).forEach(categoryName => {
+        const categoryKeys = Object.keys(categoriesData);
+
+        categoryKeys.forEach((categoryName, index) => {
             const entries = categoriesData[categoryName];
-            if (entries && entries.length > 0) {
+            if (entries) {
                 const categoryId = `table-container-${categoryName.replace(/\s+/g, '-')}`;
                 const listItem = document.createElement('li');
-                listItem.innerHTML = `<a href="#${categoryId}" class="block text-gray-300 hover:text-white hover:bg-gray-700 p-2 rounded-md transition-colors duration-200">${categoryName}</a>`;
+                listItem.className = 'flex justify-between items-center group'; // Add group for hover effects
+
+                listItem.innerHTML = `
+                    <a href="#${categoryId}" class="block text-gray-300 hover:text-white hover:bg-gray-700 p-2 rounded-md transition-colors duration-200 flex-grow">${categoryName}</a>
+                    <div class="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity pr-2">
+                        <button class="sidebar-move-up-btn text-white hover:text-red-400 text-xs ${index === 0 ? 'invisible' : ''}" data-category="${categoryName}" title="Move Up">▲</button>
+                        <button class="sidebar-move-down-btn text-white hover:text-red-400 text-xs ${index === categoryKeys.length - 1 ? 'invisible' : ''}" data-category="${categoryName}" title="Move Down">▼</button>
+                    </div>
+                `;
                 sidebarLinks.appendChild(listItem);
             }
         });
@@ -332,19 +462,50 @@ document.addEventListener('DOMContentLoaded', () => {
      * Renders a single table for a given category.
      * @param {string} category - The category name.
      * @param {Array<Object>} entries - The list of entries for the category.
+     * @param {number} index - The index of the category.
+     * @param {number} total - The total number of categories.
      */
-    function renderTable(category, entries) {
+    function renderTable(category, entries, index, total) {
         const categoryId = category.replace(/\s+/g, '-');
         const tableContainer = document.getElementById(`table-container-${categoryId}`);
         if (!tableContainer) return;
 
-        // Sort entries by name
+        // Sort entries by name within the table
         entries.sort((a, b) => a.name.localeCompare(b.name));
 
         const tableHTML = `
-            <h2 id="${categoryId}" class="category-header text-2xl font-bold italic text-red-500 text-center mb-4 relative group">
-                ${category}
-                <button class="add-entry-btn absolute right-0 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-full text-sm opacity-0 group-hover:opacity-100 transition-opacity" data-category="${category}">+</button>
+            <h2 id="${categoryId}" class="category-header text-2xl font-bold italic text-red-500 text-center mb-4 relative">
+                <!-- Default View -->
+                <div class="category-view group">
+                    <div class="flex items-center justify-center relative w-full">
+                        <span class="px-16">${category}</span>
+                        <div class="absolute right-0 flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button class="rename-category-btn bg-yellow-500 hover:bg-yellow-600 text-white font-bold p-2 rounded-full text-xs" data-category="${category}" title="Rename Category">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.536L16.732 3.732z"></path></svg>
+                            </button>
+                            <button class="delete-category-btn bg-red-600 hover:bg-red-700 text-white font-bold p-2 rounded-full text-xs" data-category="${category}" title="Delete Category">
+                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                            <button class="add-entry-btn bg-blue-600 hover:bg-blue-700 text-white font-bold p-2 rounded-full text-xs" data-category="${category}" title="Add Entry">+</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Rename View -->
+                <div class="category-rename-form hidden">
+                    <div class="flex justify-center items-center space-x-2">
+                        <input type="text" class="rename-input bg-gray-800 text-white w-1/2 p-2 rounded-l-md focus:outline-none focus:ring-2 focus:ring-yellow-500" value="${category}">
+                        <button class="save-rename-btn bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md text-sm" data-old-name="${category}">Save</button>
+                        <button class="cancel-rename-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-md text-sm">Cancel</button>
+                    </div>
+                </div>
+                <!-- Delete Confirmation View -->
+                <div class="category-delete-confirm hidden">
+                    <div class="flex justify-center items-center space-x-4">
+                        <span class="text-white">Are you sure?</span>
+                        <button class="confirm-delete-btn bg-red-700 hover:bg-red-800 text-white font-bold py-2 px-4 rounded-md text-sm" data-category="${category}">Yes, Delete</button>
+                        <button class="cancel-delete-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-md text-sm">No</button>
+                    </div>
+                </div>
             </h2>
             <div class="overflow-x-auto">
                 <table class="min-w-full table-auto">
@@ -443,15 +604,68 @@ document.addEventListener('DOMContentLoaded', () => {
         if (target.classList.contains('add-entry-btn')) {
             const category = target.dataset.category;
             addNewEntryRow(category);
+        } else if (target.closest('.rename-category-btn')) {
+            const header = target.closest('.category-header');
+            header.querySelector('.category-view').classList.add('hidden');
+            header.querySelector('.category-rename-form').classList.remove('hidden');
+            header.querySelector('.rename-input').focus();
+        } else if (target.closest('.cancel-rename-btn')) {
+            const header = target.closest('.category-header');
+            header.querySelector('.category-rename-form').classList.add('hidden');
+            header.querySelector('.category-view').classList.remove('hidden');
+        } else if (target.closest('.save-rename-btn')) {
+            const button = target.closest('.save-rename-btn');
+            const header = button.closest('.category-header');
+            const oldCategoryName = button.dataset.oldName;
+            const newCategoryName = header.querySelector('.rename-input').value.trim();
+
+            if (newCategoryName && newCategoryName !== oldCategoryName) {
+                if (categoriesData[newCategoryName]) {
+                    showNotification(`Category "${newCategoryName}" already exists.`, 'error');
+                    return;
+                }
+
+                const newCategoriesData = {};
+                Object.keys(categoriesData).forEach(key => {
+                    if (key === oldCategoryName) {
+                        newCategoriesData[newCategoryName] = categoriesData[oldCategoryName];
+                    } else {
+                        newCategoriesData[key] = categoriesData[key];
+                    }
+                });
+                categoriesData = newCategoriesData;
+
+                renderAllTables();
+                updateSidebarLinks();
+                showNotification(`Category '${oldCategoryName}' renamed to '${newCategoryName}'.`, 'success');
+            }
+        } else if (target.closest('.delete-category-btn')) {
+            const header = target.closest('.category-header');
+            header.querySelector('.category-view').classList.add('hidden');
+            header.querySelector('.category-delete-confirm').classList.remove('hidden');
+        } else if (target.closest('.cancel-delete-btn')) {
+            const header = target.closest('.category-header');
+            header.querySelector('.category-delete-confirm').classList.add('hidden');
+            header.querySelector('.category-view').classList.remove('hidden');
+        } else if (target.closest('.confirm-delete-btn')) {
+            const button = target.closest('.confirm-delete-btn');
+            const category = button.dataset.category;
+            delete categoriesData[category];
+            renderAllTables();
+            updateSidebarLinks();
+            updateTotalCount();
+            showNotification(`Category '${category}' deleted.`, 'success');
         } else if (target.classList.contains('delete-btn')) {
             const row = target.closest('tr');
             const category = row.dataset.category;
             const index = parseInt(row.dataset.index, 10);
 
             if (categoriesData[category]) {
+                const entryName = categoriesData[category][index].name;
                 categoriesData[category].splice(index, 1);
                 renderTable(category, categoriesData[category]);
                 updateTotalCount();
+                showNotification(`'${entryName}' deleted from '${category}'.`, 'success');
             }
         } else if (target.classList.contains('refresh-cover-btn')) {
             const row = target.closest('tr');
@@ -467,14 +681,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchCoverFromJikan(entry.name).then(imageUrl => {
                     entry.imageUrl = imageUrl || 'https://shorturl.at/JpeLA';
                     renderTable(category, categoriesData[category]);
+                    showNotification(`Cover for '${entry.name}' updated.`, 'success');
                 }).catch(() => {
                     // Re-enable the button on failure
-                    const refreshedRow = document.querySelector(`tr[data-category=\"${category}\"][data-index=\"${index}\"]`);
+                    const refreshedRow = document.querySelector(`tr[data-category="${category}"][data-index="${index}"]`);
                     const button = refreshedRow?.querySelector('.refresh-cover-btn');
                     if(button) {
                         button.disabled = false;
                         button.textContent = originalButtonText;
                     }
+                    showNotification(`Failed to update cover for '${entry.name}'.`, 'error');
                 });
             }
         } else if (target.classList.contains('save-new-btn')) {
@@ -494,6 +710,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         categoriesData[category].push(newEntry);
                         renderTable(category, categoriesData[category]);
                         updateTotalCount();
+                        showNotification(`'${newEntry.name}' added to '${category}'.`, 'success');
                     }
                 };
 
@@ -519,7 +736,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
             } else {
-                alert('Please fill in both name and a valid chapter number.');
+                showNotification('Please fill in both name and a valid chapter number.', 'error');
             }
         } else if (target.classList.contains('cancel-new-btn')) {
             const row = target.closest('tr');
@@ -562,6 +779,7 @@ document.addEventListener('DOMContentLoaded', () => {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        showNotification('Manga list downloaded as manga-list.txt', 'success');
     });
 
     downloadJsonBtn.addEventListener('click', () => {
@@ -575,6 +793,7 @@ document.addEventListener('DOMContentLoaded', () => {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        showNotification('Manga list downloaded as manga-list.json', 'success');
     });
 
     downloadPdfBtn.addEventListener('click', () => {
@@ -604,8 +823,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         doc.save('manga-list.pdf');
+        showNotification('Manga list downloaded as manga-list.pdf', 'success');
     });
-
-    // Add event listeners for buttons
-    bgToggleBtn.addEventListener('click', toggleBackground);
 });

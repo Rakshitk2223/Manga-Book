@@ -18,15 +18,23 @@
         <div id="total-count-display" class="text-white text-lg font-semibold"></div>
     </header>
 
-    <!-- Sidebar Toggle Button -->
-    <button id="menu-btn" class="fixed top-1/2 left-4 -translate-y-1/2 z-50 bg-gray-800 bg-opacity-75 rounded-full p-2 text-white hover:bg-red-600 transition-colors duration-200">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
-    </button>
+    <!-- Fixed Left Buttons Container -->
+    <div class="fixed top-1/2 -translate-y-1/2 left-4 z-50 flex flex-col items-center space-y-4">
+        <!-- Sidebar Toggle Button -->
+        <button id="menu-btn" class="bg-gray-800 bg-opacity-75 rounded-full p-2 text-white hover:bg-red-600 transition-colors duration-200">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+        </button>
 
-    <!-- Background Toggle Button -->
-    <button id="bg-toggle-btn" class="fixed top-1/2 left-4 translate-y-8 z-50 bg-gray-800 bg-opacity-75 rounded-full p-2 text-white hover:bg-red-600 transition-colors duration-200">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l-1.586-1.586a2 2 0 00-2.828 0L6 16"></path></svg>
-    </button>
+        <!-- Background Toggle Button -->
+        <button id="bg-toggle-btn" class="bg-gray-800 bg-opacity-75 rounded-full p-2 text-white hover:bg-red-600 transition-colors duration-200">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l-1.586-1.586a2 2 0 00-2.828 0L6 16"></path></svg>
+        </button>
+
+        <!-- Add Category Button -->
+        <button id="add-category-sidebar-btn" class="bg-gray-800 bg-opacity-75 rounded-full p-2 text-white hover:bg-red-600 transition-colors duration-200 hidden">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+        </button>
+    </div>
 
     <!-- Sidebar -->
     <div id="sidebar" class="fixed top-0 left-0 h-full bg-gray-900 bg-opacity-95 text-white w-64 p-4 transform -translate-x-full transition-transform duration-300 z-40 overflow-y-auto">
@@ -56,17 +64,32 @@
     <!-- Overlay -->
     <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-30"></div>
 
+    <!-- Notification Container -->
+    <div id="notification-container" class="fixed top-20 right-5 z-50 w-80"></div>
+
     <!-- Main Content -->
     <div id="main-content" class="container mx-auto px-4 pt-24 pb-10 transition-all duration-300">
         <main>
             <div id="upload-container" class="table-container-glass p-8 rounded-lg shadow-lg text-center">
                 <h2 class="text-3xl font-bold mb-4 text-white">Upload Your Manga List</h2>
                 <p class="mb-6 text-gray-300">Upload a `.txt`, `.pdf`, or `.json` file to get started.</p>
-                <label for="file-upload" class="w-full md:w-1/2 mx-auto cursor-pointer bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-full transition-colors duration-200 inline-block">
-                    Select File 
-                </label>
+                <div class="flex justify-center items-center space-x-4">
+                    <label for="file-upload" class="cursor-pointer bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-full transition-colors duration-200 inline-block">
+                        Select File 
+                    </label>
+                    <button id="create-new-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full transition-colors duration-200">+ New</button>
+                </div>
                 <input type="file" id="file-upload" accept=".txt,.pdf,.json" class="hidden"/>
                 <p id="error-message" class="text-red-400 mt-4"></p>
+            </div>
+
+            <!-- Container for creating new categories -->
+            <div id="create-container" class="hidden table-container-glass p-6 rounded-lg shadow-lg text-center mb-8">
+                <h2 class="text-2xl font-bold mb-4 text-white">Create New List</h2>
+                <div class="flex justify-center items-center space-x-2">
+                    <input type="text" id="new-category-input" class="bg-gray-800 text-white w-1/2 p-2 rounded-l-md focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="Enter new category name...">
+                    <button id="add-category-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-r-md">Add Category</button>
+                </div>
             </div>
 
             <!-- Container for the dynamically generated tables -->
