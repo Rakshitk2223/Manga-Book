@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How to Use - Manga List</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('Background/bg3.jpeg');
+            background-size: cover;
+            background-position: center center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            filter: blur(8px) brightness(0.4);
+            z-index: -1;
+        }
+        .instruction-card {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+        .visual-placeholder {
+            background-color: #374151;
+            border: 2px dashed #6b7280;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 font-sans text-white">
+
+    <!-- Header -->
+    <header class="bg-gray-900 bg-opacity-70 backdrop-blur-sm p-4 flex justify-between items-center sticky top-0 z-20">
+        <h1 class="text-3xl font-bold text-white">How to Use Your Manga List</h1>
+        <a href="index.html" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-full transition-colors duration-200">
+            &larr; Back to List
+        </a>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 py-10">
+        <div class="space-y-12">
+
+            <!-- Section 1: Getting Started -->
+            <div class="instruction-card p-8 rounded-lg">
+                <h2 class="text-2xl font-bold text-red-500 mb-4">1. Getting Started: Upload or Create</h2>
+                <p class="text-gray-300 mb-6">You have two ways to begin managing your manga list:</p>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-semibold mb-2">A) Upload an Existing List</h3>
+                        <p class="mb-4">If you have a previously saved list, you can upload it in <code>.txt</code>, <code>.pdf</code>, or <code>.json</code> format. The app will automatically parse it and display your collection.</p>
+                        <p class="mb-2 text-gray-400">For <code>.txt</code> and <code>.pdf</code> files, the format must be precise. Each category should be a plain text line, followed by its entries. Each entry must follow this specific format:</p>
+                        <pre class="bg-gray-800 p-3 rounded-md text-sm text-gray-300 whitespace-pre-wrap"><code>[Manga Name Ch ChapterNumber](ImageURL)</code></pre>
+                        <p class="mt-4 mb-2 text-gray-400">Here is a valid <code>.txt</code> file example:</p>
+                        <pre class="bg-gray-800 p-3 rounded-md text-sm text-gray-300"><code>Manhwa
+
+[Solo Leveling Ch 179](https://example.com/cover.jpg)
+[The Beginning After The End Ch 125](https://example.com/cover2.jpg)
+
+Manga
+
+[One Piece Ch 1044](https://example.com/cover3.jpg)</code></pre>
+                        <p class="mt-4 text-yellow-400 text-sm"><b>Note:</b> For perfect backups and restoration, using the <b>JSON</b> format is highly recommended as it preserves all data, including cover image URLs, without any parsing errors.</p>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-semibold mb-2">B) Create a New List</h3>
+                        <p class="mb-4">Don't have a file? No problem. Click the <b>"+ New"</b> button to start a fresh list from scratch. It's incredibly easy to build your collection from the ground up.</p>
+                        <p class="mb-4">Simply create your first category (e.g., "Reading" or "Finished") and then start adding your favorite manga and manhwa to it. You can add as many categories and entries as you like.</p>
+                        <p class="text-yellow-400 text-sm"><b>Crucial:</b> Your list is stored only in your browser session. To avoid losing your work, make sure to regularly download your list using the "Save & Download" options found in the sidebar. Saving it as a <b>JSON file</b> is the safest way to keep a perfect backup that you can re-upload later.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 2: Managing Categories -->
+            <div class="instruction-card p-8 rounded-lg">
+                <h2 class="text-2xl font-bold text-red-500 mb-4">2. Managing Your Categories</h2>
+                <p class="text-gray-300 mb-6">Your categories are the backbone of your list, helping you organize your collection effectively. Here’s how you can easily manage them:</p>
+                <ul class="list-disc list-inside space-y-4 text-gray-300">
+                    <li><b>Add a Category:</b> Use the input box at the top of the page or click the floating '<b>+</b>' button on the left to add new categories (e.g., "Manhwa," "Dropped," "Favorites").</li>
+                    <li><b>Rename a Category:</b> Made a typo or changed your mind? Hover over a category title and click the yellow pencil icon to give it a new name.</li>
+                    <li><b>Delete a Category:</b> To remove a category and all its entries, hover over its title and click the red trash can icon. You'll be asked to confirm this action.</li>
+                    <li><b>Reorder Categories:</b> Want to see your most important categories first? Open the sidebar (click the ☰ icon) and use the ▲ and ▼ arrows next to each category name to change their order. The main view will update instantly.</li>
+                </ul>
+            </div>
+
+            <!-- Section 3: Managing Entries -->
+            <div class="instruction-card p-8 rounded-lg">
+                <h2 class="text-2xl font-bold text-red-500 mb-4">3. Managing Manga/Manhwa Entries</h2>
+                <p class="text-gray-300 mb-6">Each entry in your list represents a specific manga or manhwa. You have granular control over every item.</p>
+                 <ul class="list-disc list-inside space-y-4 text-gray-300">
+                    <li><b>Add an Entry:</b> Click the blue '<b>+</b>' button in any category header to add a new row. Fill in the manga name and current chapter, then click 'Save'. A cover image will be fetched automatically.</li>
+                    <li><b>Edit Name/Chapter:</b> Simply click on the text in the 'Name' or 'Chapter' columns to edit it directly. The changes are saved automatically when you click away or press Enter.</li>
+                    <li><b>Delete an Entry:</b> Click the 'Delete' button at the end of any row to remove the entry from your list.</li>
+                    <li><b>Refresh Cover:</b> If a cover image is missing, broken, or incorrect, click the small green '<b>R</b>' button. This will attempt to fetch a new cover from the Jikan API. (Requires an internet connection and an accurate manga title for best results).</li>
+                </ul>
+            </div>
+            
+            <!-- Section 4: Downloading -->
+            <div class="instruction-card p-8 rounded-lg">
+                <h2 class="text-2xl font-bold text-red-500 mb-4">4. Saving & Downloading Your List</h2>
+                <p class="text-gray-300 mb-6"><b>This is the most important step!</b> Your list exists only in your browser. To prevent losing your data, you must save it. Open the sidebar (☰ icon) to find the download options.</p>
+                <p class="text-gray-300">You can download your entire list in three different formats:</p>
+                <ul class="list-disc list-inside space-y-3 mt-4">
+                    <li><b>TXT:</b> A simple, human-readable text file, useful for quick viewing.</li>
+                    <li><b>PDF:</b> A portable document ideal for sharing, printing, or viewing on different devices.</li>
+                    <li class="text-yellow-400"><b>JSON (Recommended):</b> This is the best option for creating a perfect, loss-free backup. A JSON file saves all your categories, entries, and image links exactly as they are, allowing you to re-upload and restore your list perfectly on this site at any time.</li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+
+</body>
+</html>
