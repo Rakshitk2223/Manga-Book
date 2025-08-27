@@ -56,3 +56,30 @@ body::before {
 #main-content {
     padding-left: 5rem; /* Increased padding to avoid overlap with the new button container */
 }
+
+/* Auth Form Styling */
+.auth-container {
+    max-width: 400px;
+    margin: 10rem auto 0 auto;
+}
+.auth-form input {
+    background-color: #333;
+    border: 1px solid #555;
+    color: white;
+    padding: 0.75rem;
+    border-radius: 0.25rem;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+.auth-form button {
+    width: 100%;
+    padding: 0.75rem;
+    border-radius: 0.25rem;
+    font-weight: bold;
+    transition: background-color 0.2s;
+}
+.auth-toggle-link {
+    cursor: pointer;
+    color: #e50914;
+    text-decoration: underline;
+}

@@ -1,13 +1,18 @@
 // Wait for the DOM to be fully loaded before running the script
 document.addEventListener('DOMContentLoaded', () => {
 
+    // --- API Configuration ---
+    const API_URL = 'http://localhost:5000/api';
+
     // --- Element Selections ---
-    const fileInput = document.getElementById('file-upload');
-    const fileInputSidebar = document.getElementById('file-input-sidebar');
-    const errorMessage = document.getElementById('error-message');
+    const authContainer = document.getElementById('auth-container');
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    const showRegisterLink = document.getElementById('show-register');
+    const showLoginLink = document.getElementById('show-login');
+    const logoutBtn = document.getElementById('logout-btn');
     const tablesContainer = document.getElementById('tables-container');
     const totalCountDisplay = document.getElementById('total-count-display');
-    const uploadContainer = document.getElementById('upload-container');
     const sidebar = document.getElementById('sidebar');
     const menuBtn = document.getElementById('menu-btn');
     const overlay = document.getElementById('overlay');
@@ -16,15 +21,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadContainer = document.getElementById('download-container');
     const downloadTxtBtn = document.getElementById('download-txt-btn');
     const downloadPdfBtn = document.getElementById('download-pdf-btn');
-    const downloadJsonBtn = document.getElementById('download-json-btn'); // Get the button from HTML
+    const downloadJsonBtn = document.getElementById('download-json-btn');
     const sidebarUploadContainer = document.getElementById('sidebar-upload-container');
     const mainContent = document.getElementById('main-content');
-    const createNewBtn = document.getElementById('create-new-btn');
     const createContainer = document.getElementById('create-container');
     const newCategoryInput = document.getElementById('new-category-input');
     const addCategoryBtn = document.getElementById('add-category-btn');
     const addCategorySidebarBtn = document.getElementById('add-category-sidebar-btn');
     const notificationContainer = document.getElementById('notification-container');
+    const searchInput = document.getElementById('search-input');
+    const detailsModal = document.getElementById('details-modal');
+    const modalContent = document.getElementById('modal-content');
 
     // Set the worker source for PDF.js
     if (window.pdfjsLib) {
@@ -84,6 +91,63 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Modal Logic
+    function openDetailsModal() {
+        detailsModal.classList.remove('hidden');
+    }
+
+    function closeDetailsModal() {
+        detailsModal.classList.add('hidden');
+        modalContent.innerHTML = ''; // Clear content to prevent old data flashing
+    }
+
+    async function fetchAndDisplayDetails(entry) {
+        openDetailsModal();
+        modalContent.innerHTML = `<p class="text-white text-center text-lg">Fetching details for ${entry.name}...</p>`;
+
+        try {
+            const response = await fetch(`https://api.jikan.moe/v4/manga?q=${encodeURIComponent(entry.name)}&limit=1`);
+            if (!response.ok) throw new Error(`API error: ${response.statusText}`);
+
+            const data = await response.json();
+            const manga = data.data[0];
+
+            if (!manga) {
+                modalContent.innerHTML = `<p class="text-red-400 text-center">Could not find detailed information for "${entry.name}".</p>`;
+                return;
+            }
+
+            const genres = manga.genres.map(g => `<span class="bg-red-600 text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">${g.name}</span>`).join(' ');
+
+            modalContent.innerHTML = `
+                <button id="modal-close-btn" class="absolute top-4 right-4 text-gray-400 hover:text-white">&times;</button>
+                <div class="flex flex-col md:flex-row gap-6">
+                    <div class="flex-shrink-0">
+                        <img src="${manga.images.jpg.large_image_url}" alt="${manga.title}" class="w-48 h-auto object-cover rounded-md mx-auto">
+                    </div>
+                    <div class="flex-grow">
+                        <h2 class="text-3xl font-bold text-white mb-2">${manga.title}</h2>
+                        <p class="text-lg text-gray-300 mb-4">${manga.title_japanese || ''}</p>
+                        <div class="flex items-center space-x-4 mb-4 text-yellow-400">
+                            <span>⭐ ${manga.score || 'N/A'}</span>
+                            <span>#${manga.rank || 'N/A'}</span>
+                            <span class="px-2 py-1 bg-gray-700 text-white rounded-md text-sm">${manga.status || 'Unknown'}</span>
+                        </div>
+                        <div class="mb-4">
+                            ${genres}
+                        </div>
+                        <p class="text-gray-400 text-sm max-h-48 overflow-y-auto pr-2">${manga.synopsis || 'No synopsis available.'}</p>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modal-close-btn').addEventListener('click', closeDetailsModal);
+
+        } catch (error) {
+            console.error("Failed to fetch details:", error);
+            modalContent.innerHTML = `<p class="text-red-400 text-center">Error fetching details. Please check the console.</p>`;
+        }
+    }
+
     // --- Event Listeners ---
     menuBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -134,26 +198,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     bgToggleBtn.addEventListener('click', toggleBackground);
 
-    fileInput.addEventListener('change', (event) => handleFile(event.target.files[0]));
-    fileInputSidebar.addEventListener('change', (event) => handleFile(event.target.files[0]));
-
-    createNewBtn.addEventListener('click', () => {
-        // Hide upload container and show the creation UI
-        uploadContainer.style.display = 'none';
-        createContainer.classList.remove('hidden');
-        
-        // Reset data and UI
-        categoriesData = {};
-        renderAllTables();
-        updateSidebarLinks();
-        updateTotalCount();
-
-        // Show sidebar upload and download options
-        sidebarUploadContainer.classList.remove('hidden');
-        downloadContainer.classList.remove('hidden');
-        addCategorySidebarBtn.classList.remove('hidden');
-    });
-
     addCategoryBtn.addEventListener('click', () => {
         const categoryName = newCategoryInput.value.trim();
         if (categoryName && !categoriesData[categoryName]) {
@@ -181,18 +225,52 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    detailsModal.addEventListener('click', (e) => {
+        if (e.target === detailsModal) {
+            closeDetailsModal();
+        }
+    });
+
+    searchInput.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase().trim();
+        const allTableContainers = document.querySelectorAll('.table-container-glass');
+
+        allTableContainers.forEach(container => {
+            const rows = container.querySelectorAll('tbody tr');
+            let categoryVisible = false;
+
+            rows.forEach(row => {
+                const nameCell = row.querySelector('td[data-field="name"]');
+                if (nameCell) {
+                    const name = nameCell.textContent.toLowerCase();
+                    if (name.includes(searchTerm)) {
+                        row.style.display = '';
+                        categoryVisible = true;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                }
+            });
+
+            // Hide the entire category container if no rows match
+            if (categoryVisible) {
+                container.style.display = '';
+            } else {
+                container.style.display = 'none';
+            }
+        });
+    });
+
     // --- File Processing Logic ---
     function handleFile(file) {
         if (!file) return;
 
         const fileType = file.type;
         if (fileType !== 'text/plain' && fileType !== 'application/pdf' && fileType !== 'application/json') {
-            errorMessage.textContent = 'Error: Please upload a .txt, .pdf or .json file.';
             showNotification('Invalid file type. Please upload .txt, .pdf, or .json.', 'error');
             return;
         }
 
-        errorMessage.textContent = '';
         const reader = new FileReader();
 
         if (fileType === 'text/plain') {
@@ -233,7 +311,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         processData(pageTexts.join('\n'));
                     });
                 }).catch(err => {
-                    errorMessage.textContent = 'Error processing PDF file.';
                     showNotification('Error processing PDF file.', 'error');
                     console.error(err);
                 });
@@ -249,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const lines = data.split(/\r?\n/).filter(line => line.trim() !== '');
 
         if (lines.length === 0) {
-            errorMessage.textContent = 'File is empty or contains no valid data.';
+            showNotification('File is empty or contains no valid data.', 'error');
             return;
         }
 
@@ -293,10 +370,10 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchImagesAndRender();
 
         // Show/hide relevant containers
-        uploadContainer.style.display = 'none';
         sidebarUploadContainer.classList.remove('hidden');
         downloadContainer.classList.remove('hidden');
         addCategorySidebarBtn.classList.remove('hidden');
+        saveUserData(); // Save after importing data
     }
 
     function processJsonData(jsonData) {
@@ -309,16 +386,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 showNotification('JSON file loaded successfully!', 'success');
 
                 // Show/hide relevant containers
-                uploadContainer.style.display = 'none';
                 sidebarUploadContainer.classList.remove('hidden');
                 downloadContainer.classList.remove('hidden');
                 addCategorySidebarBtn.classList.remove('hidden');
+                saveUserData(); // Save after importing JSON
             } else {
                 throw new Error('Invalid JSON format.');
             }
         } catch (error) {
-            errorMessage.textContent = `Error processing JSON file: ${error.message}`;
-            showNotification(`Error: ${error.message}`, 'error');
+            showNotification(`Error processing JSON file: ${error.message}`, 'error');
             console.error(error);
         }
     }
@@ -370,7 +446,6 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchImagesAndRender() {
         tablesContainer.innerHTML = '<p class="text-white text-center text-lg">Searching for cover images, please wait...</p>';
         showNotification('Fetching cover images...', 'info');
-        errorMessage.textContent = ''; // Clear previous errors
 
         const defaultImageUrl = 'https://shorturl.at/JpeLA';
         // Create a flat list of all entries that need their images fetched.
@@ -520,18 +595,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     </thead>
                     <tbody>
                         ${entries.map((entry, index) => `
-                            <tr data-category="${category}" data-index="${index}">
+                            <tr data-category="${category}" data-index="${index}" data-action="open-details" class="cursor-pointer hover:bg-gray-800 transition-colors">
                                 <td class="border-t border-gray-700 px-4 py-2 text-center">${index + 1}</td>
                                 <td class="border-t border-gray-700 px-2 py-2 text-center">
-                                    <img src="${entry.imageUrl || 'https://via.placeholder.com/80x120.png?text=No+Image'}" alt="${entry.name}" class="w-20 h-28 object-cover rounded-md mx-auto">
+                                    <img src="${entry.imageUrl || 'https://via.placeholder.com/80x120.png?text=No+Image'}" alt="${entry.name}" class="w-20 h-28 object-cover rounded-md mx-auto pointer-events-none">
                                 </td>
-                                <td class="border-t border-gray-700 px-4 py-2" contenteditable="true" data-field="name">
-                                    <div class="glass-container">${entry.name}</div>
-                                </td>
-                                <td class="border-t border-gray-700 px-4 py-2 text-center" contenteditable="true" data-field="chapter">${entry.chapter}</td>
-                                <td class="border-t border-gray-700 px-4 py-2 text-center">\
-                                    <button class="delete-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs">Delete</button>\
-                                    <button class="refresh-cover-btn bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-xs ml-1">R</button>\
+                                <td class="border-t border-gray-700 px-4 py-2" contenteditable="true" data-field="name" data-action="edit">${entry.name}</td>
+                                <td class="border-t border-gray-700 px-4 py-2 text-center" contenteditable="true" data-field="chapter" data-action="edit">${entry.chapter}</td>
+                                <td class="border-t border-gray-700 px-4 py-2 text-center">
+                                    <button class="delete-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs" data-action="delete">Delete</button>
+                                    <button class="refresh-cover-btn bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-xs ml-1" data-action="refresh">R</button>
                                 </td>
                             </tr>
                         `).join('')}
@@ -600,8 +673,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     tablesContainer.addEventListener('click', (e) => {
         const target = e.target;
+        const action = target.dataset.action || target.closest('[data-action]')?.dataset.action;
 
-        if (target.classList.contains('add-entry-btn')) {
+        if (action === 'open-details') {
+            // Prevent modal from opening when clicking on editable fields or buttons
+            if (target.isContentEditable || ['delete', 'refresh', 'edit'].includes(target.dataset.action)) {
+                return;
+            }
+            const row = target.closest('tr');
+            const category = row.dataset.category;
+            const index = parseInt(row.dataset.index, 10);
+            const entry = categoriesData[category]?.[index];
+            if (entry) {
+                fetchAndDisplayDetails(entry);
+            }
+        } else if (target.classList.contains('add-entry-btn')) {
             const category = target.dataset.category;
             addNewEntryRow(category);
         } else if (target.closest('.rename-category-btn')) {
@@ -825,4 +911,220 @@ document.addEventListener('DOMContentLoaded', () => {
         doc.save('manga-list.pdf');
         showNotification('Manga list downloaded as manga-list.pdf', 'success');
     });
+
+    // --- Authentication Functions ---
+    async function register(username, password) {
+        try {
+            const response = await fetch(`${API_URL}/auth/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (response.ok) {
+                showNotification('Registration successful! Please login.', 'success');
+                showLogin();
+            } else {
+                const error = await response.text();
+                showNotification(error || 'Registration failed', 'error');
+            }
+        } catch (error) {
+            console.error('Registration error:', error);
+            showNotification('Registration failed. Please check your connection.', 'error');
+        }
+    }
+
+    async function login(username, password) {
+        try {
+            const response = await fetch(`${API_URL}/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                localStorage.setItem('token', data.token);
+                showNotification(`Welcome back, ${username}!`, 'success');
+                showApp();
+                loadUserData();
+            } else {
+                const error = await response.text();
+                showNotification(error || 'Login failed', 'error');
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            showNotification('Login failed. Please check your connection.', 'error');
+        }
+    }
+
+    function logout() {
+        localStorage.removeItem('token');
+        categoriesData = {};
+        showNotification('Logged out successfully', 'success');
+        showAuth();
+    }
+
+    async function loadUserData() {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        try {
+            const response = await fetch(`${API_URL}/list`, {
+                method: 'GET',
+                headers: {
+                    'x-auth-token': token
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                categoriesData = data;
+                fetchImagesAndRender();
+            } else if (response.status === 401) {
+                localStorage.removeItem('token');
+                showAuth();
+                showNotification('Session expired. Please login again.', 'error');
+            } else {
+                showNotification('Failed to load your data', 'error');
+            }
+        } catch (error) {
+            console.error('Load data error:', error);
+            showNotification('Failed to load data. Please check your connection.', 'error');
+        }
+    }
+
+    async function saveUserData() {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        try {
+            const response = await fetch(`${API_URL}/list`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-auth-token': token
+                },
+                body: JSON.stringify(categoriesData)
+            });
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    localStorage.removeItem('token');
+                    showAuth();
+                    showNotification('Session expired. Please login again.', 'error');
+                } else {
+                    console.error('Save data error:', response.statusText);
+                }
+            }
+        } catch (error) {
+            console.error('Save data error:', error);
+        }
+    }
+
+    // --- UI State Management ---
+    function showAuth() {
+        authContainer.classList.remove('hidden');
+        createContainer.classList.add('hidden');
+        tablesContainer.innerHTML = '';
+        logoutBtn.classList.add('hidden');
+        sidebarUploadContainer.classList.add('hidden');
+        downloadContainer.classList.add('hidden');
+        addCategorySidebarBtn.classList.add('hidden');
+    }
+
+    function showApp() {
+        authContainer.classList.add('hidden');
+        logoutBtn.classList.remove('hidden');
+    }
+
+    function showLogin() {
+        loginForm.classList.remove('hidden');
+        registerForm.classList.add('hidden');
+    }
+
+    function showRegister() {
+        loginForm.classList.add('hidden');
+        registerForm.classList.remove('hidden');
+    }
+
+    // --- Auth Event Listeners ---
+    loginForm.querySelector('form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const username = document.getElementById('login-username').value.trim();
+        const password = document.getElementById('login-password').value.trim();
+        if (username && password) {
+            login(username, password);
+        }
+    });
+
+    registerForm.querySelector('form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const username = document.getElementById('register-username').value.trim();
+        const password = document.getElementById('register-password').value.trim();
+        if (username && password) {
+            register(username, password);
+        }
+    });
+
+    showRegisterLink.addEventListener('click', showRegister);
+    showLoginLink.addEventListener('click', showLogin);
+    logoutBtn.addEventListener('click', logout);
+
+    // Modified functions to save data after changes
+    const originalAddCategoryBtnClick = addCategoryBtn.onclick;
+    addCategoryBtn.addEventListener('click', () => {
+        const categoryName = newCategoryInput.value.trim();
+        if (categoryName && !categoriesData[categoryName]) {
+            categoriesData[categoryName] = [];
+            renderAllTables();
+            updateSidebarLinks();
+            newCategoryInput.value = '';
+            showNotification(`Category '${categoryName}' created successfully.`, 'success');
+            saveUserData();
+            const newTableId = `table-container-${categoryName.replace(/\s+/g, '-')}`;
+            document.getElementById(newTableId)?.scrollIntoView({ behavior: 'smooth' });
+        } else if (categoriesData[categoryName]) {
+            showNotification('Category already exists.', 'error');
+        }
+    });
+
+    // Override data modification functions to trigger save
+    const originalFocusOutHandler = tablesContainer.querySelector ? null : 'dummy';
+    tablesContainer.addEventListener('focusout', (e) => {
+        const target = e.target.closest('td[contenteditable="true"]');
+        if (!target) return;
+
+        const row = target.closest('tr');
+        const { category, index } = row.dataset;
+        const field = target.dataset.field;
+
+        if (category && index !== undefined && field) {
+            let value = target.textContent.trim();
+            if (field === 'chapter') {
+                value = parseFloat(value) || 0;
+            }
+            categoriesData[category][index][field] = value;
+            updateTotalCount();
+            saveUserData(); // Save after editing
+        }
+    });
+
+    // --- Initialization ---
+    function initApp() {
+        const token = localStorage.getItem('token');
+        if (token) {
+            showApp();
+            loadUserData();
+        } else {
+            showAuth();
+        }
+    }
+
+    // Start the app
+    initApp();
 });
