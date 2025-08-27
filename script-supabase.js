@@ -11,7 +11,16 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 let currentUser = null;
 let categoriesData = {};
 
-// Wait for DOM to load
+// Background rotation state (moved to module scope so toggleBackground is defined before listeners attach)
+const backgroundImages = ['Background/bg1.jpeg', 'Background/bg2.jpeg', 'Background/bg3.jpeg', 'Background/bg4.jpeg', 'Background/bg5.jpeg', 'Background/bg6.jpeg'];
+let currentBgIndex = 0;
+
+function toggleBackground() {
+    currentBgIndex = (currentBgIndex + 1) % backgroundImages.length;
+    document.body.style.backgroundImage = `url('${backgroundImages[currentBgIndex]}')`;
+}
+
+// Wait for DOM to load`
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('DOM loaded, initializing Supabase app...');
     
@@ -30,15 +39,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // Set initial background
-    const backgroundImages = ['Background/bg1.jpeg', 'Background/bg2.jpeg', 'Background/bg3.jpeg', 'Background/bg4.jpeg', 'Background/bg5.jpeg', 'Background/bg6.jpeg'];
-    let currentBgIndex = 0;
     document.body.style.backgroundImage = `url('${backgroundImages[0]}')`;
-    
-    // Background toggle function
-    window.toggleBackground = function() {
-        currentBgIndex = (currentBgIndex + 1) % backgroundImages.length;
-        document.body.style.backgroundImage = `url('${backgroundImages[currentBgIndex]}')`;
-    };
 });
 
 // Initialize application and check auth state
