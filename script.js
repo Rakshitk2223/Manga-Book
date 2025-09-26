@@ -939,6 +939,8 @@ document.addEventListener('DOMContentLoaded', () => {
         renderTable(category, categoriesData[category]);
         closeDetailsModal();
         showNotification(`Image updated for '${entry.name}' from ${source}`, 'success');
+        // Save the updated data to backend
+        saveUserData();
     }
 
     // Global function to preview image when adding new entries
@@ -1136,6 +1138,8 @@ document.addEventListener('DOMContentLoaded', () => {
             updateSidebarLinks();
             newCategoryInput.value = ''; // Clear input
             showNotification(`Category '${categoryName}' created successfully.`, 'success');
+            // Save the updated data to backend
+            saveUserData();
             // Scroll to the new table
             const newTableId = `table-container-${categoryName.replace(/\s+/g, ' ')}`;
             document.getElementById(newTableId)?.scrollIntoView({ behavior: 'smooth' });
@@ -1856,6 +1860,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             categoriesData[category][index][field] = value;
             updateTotalCount(); // In case an entry is cleared
+            // Save the updated data to backend
+            saveUserData();
         }
     });
 
@@ -1912,6 +1918,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderAllTables();
                 updateSidebarLinks();
                 showNotification(`Category '${oldCategoryName}' renamed to '${newCategoryName}'.`, 'success');
+                // Save the updated data to backend
+                saveUserData();
             }
         } else if (target.closest('.delete-category-btn')) {
             const header = target.closest('.category-header');
@@ -1929,6 +1937,8 @@ document.addEventListener('DOMContentLoaded', () => {
             updateSidebarLinks();
             updateTotalCount();
             showNotification(`Category '${category}' deleted.`, 'success');
+            // Save the updated data to backend
+            saveUserData();
         } else if (target.classList.contains('delete-btn')) {
             const row = target.closest('tr');
             const category = row.dataset.category;
@@ -1940,6 +1950,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderTable(category, categoriesData[category]);
                 updateTotalCount();
                 showNotification(`'${entryName}' deleted from '${category}'.`, 'success');
+                // Save the updated data to backend
+                saveUserData();
             }
         } else if (target.classList.contains('refresh-cover-btn')) {
             const row = target.closest('tr');
@@ -1966,6 +1978,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     renderTable(category, categoriesData[category]);
                     showNotification(`Cover for '${entry.name}' updated.`, 'success');
+                    // Save the updated data to backend
+                    saveUserData();
                 }).catch(() => {
                     // Re-enable the button on failure
                     const refreshedRow = document.querySelector(`tr[data-category="${category}"][data-index="${index}"]`);
@@ -1996,6 +2010,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 entry.imageUrl = 'https://shorturl.at/JpeLA'; // Set to default image
                 renderTable(category, categoriesData[category]);
                 showNotification(`Image removed for '${entry.name}'`, 'success');
+                // Save the updated data to backend
+                saveUserData();
             }
         } else if (target.classList.contains('save-new-btn')) {
             const category = target.dataset.category;
@@ -2015,6 +2031,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         renderTable(category, categoriesData[category]);
                         updateTotalCount();
                         showNotification(`'${newEntry.name}' added to '${category}'.`, 'success');
+                        // Save the updated data to backend
+                        saveUserData();
                     }
                 };
 
