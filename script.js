@@ -2,12 +2,23 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- API Configuration ---
-    const API_URL = 'http://localhost:5000/api';
+    const API_URL = 'http://localhost:5001/api';
+    
+    // --- Authentication State ---
+    let currentUser = null;
+    let authToken = localStorage.getItem('authToken');
 
     // --- Element Selections ---
     const authContainer = document.getElementById('auth-container');
-    const loginForm = document.getElementById('login-form');
-    const registerForm = document.getElementById('register-form');
+    const loginForm = document.querySelector('#login-form form');
+    const registerForm = document.querySelector('#register-form form');
+    
+    // Debug: Check if forms are found
+    console.log('DOM loaded, checking forms...');
+    console.log('Login form element:', document.querySelector('#login-form'));
+    console.log('Login form form:', loginForm);
+    console.log('Register form element:', document.querySelector('#register-form'));
+    console.log('Register form form:', registerForm);
     const showRegisterLink = document.getElementById('show-register');
     const showLoginLink = document.getElementById('show-login');
     const logoutBtn = document.getElementById('logout-btn');
@@ -66,6 +77,393 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Global Data Store ---
     let categoriesData = {};
+    
+    // --- Authentication Functions ---
+    
+    // Check if user is authenticated on page load
+    async function checkAuthStatus() {
+        if (!authToken) {
+            showAuthView();
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${API_URL}/auth/me`, {
+                headers: {
+                    'x-auth-token': authToken
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                currentUser = data.user;
+                await showAppView();
+                await loadMangaData();
+            } else {
+                localStorage.removeItem('authToken');
+                authToken = null;
+                showAuthView();
+            }
+        } catch (error) {
+            console.error('Auth check error:', error);
+            localStorage.removeItem('authToken');
+            authToken = null;
+            showAuthView();
+        }
+    }
+    
+    // Handle user login
+    async function handleLogin(event) {
+        console.log('Login form submitted');
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        const emailOrUsername = formData.get('emailOrUsername').trim();
+        const password = formData.get('password');
+        
+        console.log('Login data:', { emailOrUsername, password: password ? '***' : 'empty' });
+        
+        if (!emailOrUsername || !password) {
+            showNotification('Please fill in all fields', 'error');
+            return;
+        }
+        
+        try {
+            showNotification('Signing in...', 'info');
+            
+            const response = await fetch(`${API_URL}/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ emailOrUsername, password })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                authToken = data.token;
+                currentUser = data.user;
+                localStorage.setItem('authToken', authToken);
+                
+                showNotification('Successfully signed in!', 'success');
+                await showAppView();
+                await loadMangaData();
+            } else {
+                // Simple error messages
+                if (response.status === 404) {
+                    showNotification('User does not exist', 'error');
+                } else if (response.status === 401) {
+                    showNotification('Incorrect password', 'error');
+                } else if (response.status === 429) {
+                    showNotification('Too many attempts. Please wait.', 'warn');
+                } else {
+                    showNotification(data.message || 'Login failed', 'error');
+                }
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            showNotification('Login failed. Please try again.', 'error');
+        }
+    }
+    
+    // Handle user registration
+    async function handleRegister(event) {
+        console.log('Register form submitted');
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        const username = formData.get('username').trim();
+        const email = formData.get('email').trim().toLowerCase();
+        const password = formData.get('password');
+        const securityWord = formData.get('securityWord').trim();
+        
+        console.log('Register data:', { username, email, password: password ? '***' : 'empty', securityWord: securityWord ? '***' : 'empty' });
+        
+        // Client-side validation
+        if (!username || !email || !password || !securityWord) {
+            showNotification('Please fill in all fields', 'error');
+            return;
+        }
+        
+        // Simple validation
+        if (password.length < 6) {
+            showNotification('Password must be at least 6 characters', 'error');
+            return;
+        }
+        
+        try {
+            showNotification('Creating account...', 'info');
+            
+            const response = await fetch(`${API_URL}/auth/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, email, password, securityWord })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                authToken = data.token;
+                currentUser = data.user;
+                localStorage.setItem('authToken', authToken);
+                
+                showNotification('Account created successfully!', 'success');
+                await showAppView();
+                await loadMangaData();
+            } else {
+                // Simple error messages
+                if (response.status === 409) {
+                    showNotification(data.message || 'Account already exists', 'error');
+                } else {
+                    showNotification(data.message || 'Registration failed', 'error');
+                }
+            }
+        } catch (error) {
+            console.error('Registration error:', error);
+            showNotification('Registration failed. Please try again.', 'error');
+        }
+    }
+    
+    // Handle user logout
+    function handleLogout() {
+        authToken = null;
+        currentUser = null;
+        localStorage.removeItem('authToken');
+        categoriesData = {};
+        showNotification('Successfully signed out', 'success');
+        showAuthView();
+    }
+    
+
+
+    // Handle password reset
+    async function handlePasswordReset(event) {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        const emailOrUsername = formData.get('emailOrUsername').trim();
+        const securityWord = formData.get('securityWord').trim();
+        const newPassword = formData.get('newPassword');
+        const confirmPassword = formData.get('confirmPassword');
+        
+        if (!emailOrUsername || !securityWord || !newPassword || !confirmPassword) {
+            showNotification('Please fill in all fields', 'error');
+            return;
+        }
+        
+        if (newPassword !== confirmPassword) {
+            showNotification('Passwords do not match', 'error');
+            return;
+        }
+        
+        if (newPassword.length < 6) {
+            showNotification('New password must be at least 6 characters', 'error');
+            return;
+        }
+        
+        try {
+            showNotification('Resetting password...', 'info');
+            
+            const response = await fetch(`${API_URL}/auth/reset-password`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ emailOrUsername, securityWord, newPassword, confirmPassword })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                showNotification('Password reset successfully! You can now login with your new password.', 'success');
+                toggleAuthForms('login');
+                // Clear the form
+                event.target.reset();
+            } else {
+                // Simple error messages
+                if (response.status === 404) {
+                    showNotification('User does not exist', 'error');
+                } else if (response.status === 401) {
+                    showNotification('Incorrect security word', 'error');
+                } else if (response.status === 400 && data.message === 'Passwords do not match') {
+                    showNotification('Passwords do not match', 'error');
+                } else if (response.status === 429) {
+                    showNotification('Too many attempts. Please wait.', 'warn');
+                } else {
+                    showNotification(data.message || 'Password reset failed', 'error');
+                }
+            }
+        } catch (error) {
+            console.error('Password reset error:', error);
+            showNotification('Password reset failed. Please try again.', 'error');
+        }
+    }
+    
+    // Show authentication view
+    function showAuthView() {
+        if (authContainer) authContainer.classList.remove('hidden');
+        if (mainContent) mainContent.classList.remove('hidden'); // Keep main content visible
+        
+        // Hide app-specific elements
+        if (createContainer) createContainer.classList.add('hidden');
+        if (tablesContainer) tablesContainer.innerHTML = '';
+        if (sidebarUploadContainer) sidebarUploadContainer.classList.add('hidden');
+        if (downloadContainer) downloadContainer.classList.add('hidden');
+        if (addCategorySidebarBtn) addCategorySidebarBtn.classList.add('hidden');
+        if (logoutBtn) logoutBtn.classList.add('hidden');
+    }
+    
+    // Show main application view
+    async function showAppView() {
+        if (authContainer) authContainer.classList.add('hidden');
+        if (mainContent) mainContent.classList.remove('hidden');
+        
+        // Show app-specific elements
+        if (createContainer) createContainer.classList.remove('hidden');
+        if (sidebarUploadContainer) sidebarUploadContainer.classList.remove('hidden');
+        if (downloadContainer) downloadContainer.classList.remove('hidden');
+        if (addCategorySidebarBtn) addCategorySidebarBtn.classList.remove('hidden');
+        if (logoutBtn) logoutBtn.classList.remove('hidden');
+    }
+    
+    // Toggle between login, register, and reset forms
+    function toggleAuthForms(formType) {
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const resetForm = document.getElementById('reset-form');
+        
+        // Hide all forms first
+        if (loginForm) loginForm.classList.add('hidden');
+        if (registerForm) registerForm.classList.add('hidden');
+        if (resetForm) resetForm.classList.add('hidden');
+        
+        // Show the requested form
+        if (formType === 'register' && registerForm) {
+            registerForm.classList.remove('hidden');
+        } else if (formType === 'reset' && resetForm) {
+            resetForm.classList.remove('hidden');
+        } else if (loginForm) {
+            loginForm.classList.remove('hidden');
+        }
+    }
+    
+    // Toggle password visibility
+    window.togglePassword = function(inputId, button) {
+        const input = document.getElementById(inputId);
+        if (input.type === 'password') {
+            input.type = 'text';
+            button.textContent = '🙈';
+        } else {
+            input.type = 'password';
+            button.textContent = '👁️';
+        }
+    }
+    
+    // Load manga data from backend
+    async function loadMangaData() {
+        if (!authToken) {
+            showAuthView();
+            return;
+        }
+        
+        try {
+            showNotification('Loading your manga data...', 'info');
+            
+            const response = await fetch(`${API_URL}/list`, {
+                headers: {
+                    'x-auth-token': authToken,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                categoriesData = await response.json();
+                
+                // Check if user has no data (new user)
+                const hasData = Object.keys(categoriesData).length > 0 && 
+                               Object.values(categoriesData).some(entries => entries.length > 0);
+                
+                if (!hasData) {
+                    // Show welcome message for new users
+                    showNewUserWelcome();
+                } else {
+                    showNotification('Manga data loaded successfully', 'success');
+                }
+                
+                renderAllTables();
+                updateSidebarLinks();
+                updateTotalCount();
+            } else if (response.status === 401) {
+                // Token expired or invalid
+                localStorage.removeItem('authToken');
+                authToken = null;
+                currentUser = null;
+                showAuthView();
+                showNotification('Session expired. Please login again.', 'error');
+            } else if (response.status === 429) {
+                // Rate limited
+                showNotification('Too many requests. Please wait a moment and try again.', 'warn');
+            } else {
+                const error = await response.json();
+                showNotification(error.message || 'Error loading manga data', 'error');
+            }
+        } catch (error) {
+            console.error('Error loading manga data:', error);
+            if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                showNotification('Cannot connect to server. Please check if the backend is running.', 'error');
+            } else {
+                showNotification('Error loading manga data', 'error');
+            }
+        }
+    }
+    
+    // Show welcome message for new users
+    function showNewUserWelcome() {
+        showNotification('Welcome! Let\'s get started with your manga collection.', 'success');
+        
+        // Show the create container by default for new users
+        if (createContainer) {
+            createContainer.classList.remove('hidden');
+            createContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        
+        // Add helpful instructions
+        setTimeout(() => {
+            showNotification('💡 Tip: Create your first category like "Currently Reading" or "Plan to Read"', 'info');
+        }, 2000);
+        
+        setTimeout(() => {
+            showNotification('📚 You can also upload a JSON/TXT file with your existing manga list!', 'info');
+        }, 4000);
+    }
+    
+    // Save manga data to backend
+    async function saveUserData() {
+        if (!authToken) return;
+        
+        try {
+            const response = await fetch(`${API_URL}/list`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-auth-token': authToken
+                },
+                body: JSON.stringify(categoriesData)
+            });
+            
+            if (response.ok) {
+                const updatedData = await response.json();
+                categoriesData = updatedData;
+                showNotification('Data saved successfully!', 'success');
+            } else {
+                const error = await response.json();
+                showNotification(error.message || 'Error saving data', 'error');
+            }
+        } catch (error) {
+            console.error('Error saving data:', error);
+            showNotification('Error saving data', 'error');
+        }
+    }
 
     // --- UI Interaction Logic ---
 
@@ -489,6 +887,53 @@ document.addEventListener('DOMContentLoaded', () => {
         tablesContainer.innerHTML = '';
         const categoryKeys = Object.keys(categoriesData);
 
+        if (categoryKeys.length === 0) {
+            // Show welcome message for completely new users
+            tablesContainer.innerHTML = `
+                <div class="text-center text-white p-8 table-container-glass rounded-lg shadow-lg">
+                    <h2 class="text-3xl font-bold mb-4 text-red-500">Welcome to Your Manga Collection! 📚</h2>
+                    <p class="text-gray-300 mb-6 text-lg">Start building your personal manga library</p>
+                    
+                    <div class="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                        <div class="bg-gray-800 p-6 rounded-lg">
+                            <h3 class="text-xl font-bold mb-3 text-blue-400">🆕 Create Your First Category</h3>
+                            <p class="text-gray-300 mb-4">Start by creating categories like:</p>
+                            <div class="space-y-2 text-left">
+                                <div class="bg-gray-700 px-3 py-2 rounded">📖 Currently Reading</div>
+                                <div class="bg-gray-700 px-3 py-2 rounded">📋 Plan to Read</div>
+                                <div class="bg-gray-700 px-3 py-2 rounded">✅ Completed</div>
+                            </div>
+                            <button onclick="document.getElementById('new-category-input')?.focus()" 
+                                    class="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                                Create Category
+                            </button>
+                        </div>
+                        
+                        <div class="bg-gray-800 p-6 rounded-lg">
+                            <h3 class="text-xl font-bold mb-3 text-green-400">📁 Import Existing List</h3>
+                            <p class="text-gray-300 mb-4">Already have a manga list? Upload it!</p>
+                            <div class="space-y-2 text-left text-sm">
+                                <div class="text-gray-400">• JSON files from other apps</div>
+                                <div class="text-gray-400">• TXT files with manga names</div>
+                                <div class="text-gray-400">• PDF files (we'll extract text)</div>
+                            </div>
+                            <button onclick="document.getElementById('file-input-sidebar')?.click()" 
+                                    class="mt-4 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                                Upload File
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-8 p-4 bg-yellow-900 bg-opacity-50 rounded-lg">
+                        <p class="text-yellow-200">
+                            💡 <strong>Pro Tip:</strong> Use the sidebar menu (☰) to quickly navigate between categories and access upload/download features!
+                        </p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
         categoryKeys.forEach((categoryName, index) => {
             const entries = categoriesData[categoryName];
             if (entries) {
@@ -549,22 +994,39 @@ document.addEventListener('DOMContentLoaded', () => {
         entries.sort((a, b) => a.name.localeCompare(b.name));
 
         const tableHTML = `
-            <h2 id="${categoryId}" class="category-header text-2xl font-bold italic text-red-500 text-center mb-4 relative">
-                <!-- Default View -->
-                <div class="category-view group">
-                    <div class="flex items-center justify-center relative w-full">
-                        <span class="px-16">${category}</span>
-                        <div class="absolute right-0 flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button class="rename-category-btn bg-yellow-500 hover:bg-yellow-600 text-white font-bold p-2 rounded-full text-xs" data-category="${category}" title="Rename Category">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.536L16.732 3.732z"></path></svg>
-                            </button>
-                            <button class="delete-category-btn bg-red-600 hover:bg-red-700 text-white font-bold p-2 rounded-full text-xs" data-category="${category}" title="Delete Category">
-                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            </button>
-                            <button class="add-entry-btn bg-blue-600 hover:bg-blue-700 text-white font-bold p-2 rounded-full text-xs" data-category="${category}" title="Add Entry">+</button>
-                        </div>
-                    </div>
+            <div class="flex items-center justify-between mb-4">
+                <h2 id="${categoryId}" class="text-2xl font-bold italic text-red-500">${category}</h2>
+                <div class="flex items-center space-x-2">
+                    <span class="text-gray-400 text-sm">${entries.length} manga</span>
+                    <button class="add-entry-btn bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded-lg text-sm transition-all transform hover:scale-105 shadow-lg" data-category="${category}" title="Add New Manga">
+                        ➕ Add Manga
+                    </button>
+                    <button class="rename-category-btn bg-yellow-500 hover:bg-yellow-600 text-white font-bold p-2 rounded-lg text-xs" data-category="${category}" title="Rename Category">
+                        ✏️
+                    </button>
+                    <button class="delete-category-btn bg-red-600 hover:bg-red-700 text-white font-bold p-2 rounded-lg text-xs" data-category="${category}" title="Delete Category">
+                        🗑️
+                    </button>
                 </div>
+            </div>
+            
+            <!-- Rename View -->
+            <div class="category-rename-form hidden mb-4">
+                <div class="flex justify-center items-center space-x-2">
+                    <input type="text" class="rename-input bg-gray-800 text-white w-1/2 p-2 rounded-l-md focus:outline-none focus:ring-2 focus:ring-yellow-500" value="${category}">
+                    <button class="save-rename-btn bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md text-sm" data-old-name="${category}">Save</button>
+                    <button class="cancel-rename-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-md text-sm">Cancel</button>
+                </div>
+            </div>
+            
+            <!-- Delete Confirmation View -->
+            <div class="category-delete-confirm hidden mb-4">
+                <div class="flex justify-center items-center space-x-4">
+                    <span class="text-white">Are you sure you want to delete "${category}"?</span>
+                    <button class="confirm-delete-btn bg-red-700 hover:bg-red-800 text-white font-bold py-2 px-4 rounded-md text-sm" data-category="${category}">Yes, Delete</button>
+                    <button class="cancel-delete-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-md text-sm">Cancel</button>
+                </div>
+            </div>
                 <!-- Rename View -->
                 <div class="category-rename-form hidden">
                     <div class="flex justify-center items-center space-x-2">
@@ -594,7 +1056,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         </tr>
                     </thead>
                     <tbody>
-                        ${entries.map((entry, index) => `
+                        ${entries.length === 0 ? `
+                            <tr>
+                                <td colspan="5" class="border-t border-gray-700 px-4 py-8 text-center">
+                                    <div class="text-gray-400">
+                                        <div class="text-4xl mb-2">📚</div>
+                                        <p class="text-lg mb-2">No manga in this category yet</p>
+                                        <p class="text-sm mb-4">Click "Add Manga" to get started!</p>
+                                        <button class="add-entry-btn bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded-lg transition-all transform hover:scale-105" data-category="${category}">
+                                            ➕ Add Your First Manga
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ` : entries.map((entry, index) => `
                             <tr data-category="${category}" data-index="${index}" data-action="open-details" class="cursor-pointer hover:bg-gray-800 transition-colors">
                                 <td class="border-t border-gray-700 px-4 py-2 text-center">${index + 1}</td>
                                 <td class="border-t border-gray-700 px-2 py-2 text-center">
@@ -912,168 +1387,97 @@ document.addEventListener('DOMContentLoaded', () => {
         showNotification('Manga list downloaded as manga-list.pdf', 'success');
     });
 
-    // --- Authentication Functions ---
-    async function register(username, password) {
-        try {
-            const response = await fetch(`${API_URL}/auth/register`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username, password })
-            });
+    // --- Old authentication functions removed - using new ones defined earlier ---
 
-            if (response.ok) {
-                showNotification('Registration successful! Please login.', 'success');
-                showLogin();
-            } else {
-                const error = await response.text();
-                showNotification(error || 'Registration failed', 'error');
+    // --- File Upload Event Listeners ---
+    const fileInputSidebar = document.getElementById('file-input-sidebar');
+    if (fileInputSidebar) {
+        fileInputSidebar.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
             }
-        } catch (error) {
-            console.error('Registration error:', error);
-            showNotification('Registration failed. Please check your connection.', 'error');
-        }
-    }
-
-    async function login(username, password) {
-        try {
-            const response = await fetch(`${API_URL}/auth/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username, password })
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                localStorage.setItem('token', data.token);
-                showNotification(`Welcome back, ${username}!`, 'success');
-                showApp();
-                loadUserData();
-            } else {
-                const error = await response.text();
-                showNotification(error || 'Login failed', 'error');
-            }
-        } catch (error) {
-            console.error('Login error:', error);
-            showNotification('Login failed. Please check your connection.', 'error');
-        }
-    }
-
-    function logout() {
-        localStorage.removeItem('token');
-        categoriesData = {};
-        showNotification('Logged out successfully', 'success');
-        showAuth();
-    }
-
-    async function loadUserData() {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
-        try {
-            const response = await fetch(`${API_URL}/list`, {
-                method: 'GET',
-                headers: {
-                    'x-auth-token': token
-                }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                categoriesData = data;
-                fetchImagesAndRender();
-            } else if (response.status === 401) {
-                localStorage.removeItem('token');
-                showAuth();
-                showNotification('Session expired. Please login again.', 'error');
-            } else {
-                showNotification('Failed to load your data', 'error');
-            }
-        } catch (error) {
-            console.error('Load data error:', error);
-            showNotification('Failed to load data. Please check your connection.', 'error');
-        }
-    }
-
-    async function saveUserData() {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
-        try {
-            const response = await fetch(`${API_URL}/list`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-auth-token': token
-                },
-                body: JSON.stringify(categoriesData)
-            });
-
-            if (!response.ok) {
-                if (response.status === 401) {
-                    localStorage.removeItem('token');
-                    showAuth();
-                    showNotification('Session expired. Please login again.', 'error');
-                } else {
-                    console.error('Save data error:', response.statusText);
-                }
-            }
-        } catch (error) {
-            console.error('Save data error:', error);
-        }
-    }
-
-    // --- UI State Management ---
-    function showAuth() {
-        authContainer.classList.remove('hidden');
-        createContainer.classList.add('hidden');
-        tablesContainer.innerHTML = '';
-        logoutBtn.classList.add('hidden');
-        sidebarUploadContainer.classList.add('hidden');
-        downloadContainer.classList.add('hidden');
-        addCategorySidebarBtn.classList.add('hidden');
-    }
-
-    function showApp() {
-        authContainer.classList.add('hidden');
-        logoutBtn.classList.remove('hidden');
-    }
-
-    function showLogin() {
-        loginForm.classList.remove('hidden');
-        registerForm.classList.add('hidden');
-    }
-
-    function showRegister() {
-        loginForm.classList.add('hidden');
-        registerForm.classList.remove('hidden');
+        });
     }
 
     // --- Auth Event Listeners ---
-    loginForm.querySelector('form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const username = document.getElementById('login-username').value.trim();
-        const password = document.getElementById('login-password').value.trim();
-        if (username && password) {
-            login(username, password);
-        }
-    });
+    console.log('Setting up auth event listeners...');
+    console.log('Login form:', loginForm);
+    console.log('Register form:', registerForm);
+    
+    if (loginForm) {
+        loginForm.addEventListener('submit', handleLogin);
+        console.log('Login form listener attached');
+    } else {
+        console.error('Login form not found!');
+    }
+    
+    if (registerForm) {
+        registerForm.addEventListener('submit', handleRegister);
+        console.log('Register form listener attached');
+    } else {
+        console.error('Register form not found!');
+    }
+    
+    const resetForm = document.querySelector('#reset-form form');
+    if (resetForm) {
+        resetForm.addEventListener('submit', handlePasswordReset);
+        console.log('Reset form listener attached');
+    } else {
+        console.error('Reset form not found!');
+    }
+    
+    if (showRegisterLink) {
+        showRegisterLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('Show register clicked');
+            toggleAuthForms('register');
+        });
+        console.log('Show register link listener attached');
+    } else {
+        console.error('Show register link not found!');
+    }
+    
+    if (showLoginLink) {
+        showLoginLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('Show login clicked');
+            toggleAuthForms('login');
+        });
+        console.log('Show login link listener attached');
+    } else {
+        console.error('Show login link not found!');
+    }
+    
+    const showResetLink = document.getElementById('show-reset');
+    if (showResetLink) {
+        showResetLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('Show reset clicked');
+            toggleAuthForms('reset');
+        });
+        console.log('Show reset link listener attached');
+    } else {
+        console.error('Show reset link not found!');
+    }
+    
+    const showLoginFromResetLink = document.getElementById('show-login-from-reset');
+    if (showLoginFromResetLink) {
+        showLoginFromResetLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('Show login from reset clicked');
+            toggleAuthForms('login');
+        });
+        console.log('Show login from reset link listener attached');
+    } else {
+        console.error('Show login from reset link not found!');
+    }
+    
 
-    registerForm.querySelector('form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const username = document.getElementById('register-username').value.trim();
-        const password = document.getElementById('register-password').value.trim();
-        if (username && password) {
-            register(username, password);
-        }
-    });
-
-    showRegisterLink.addEventListener('click', showRegister);
-    showLoginLink.addEventListener('click', showLogin);
-    logoutBtn.addEventListener('click', logout);
+    
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', handleLogout);
+    }
 
     // Modified functions to save data after changes
     const originalAddCategoryBtnClick = addCategoryBtn.onclick;
@@ -1115,16 +1519,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Initialization ---
-    function initApp() {
-        const token = localStorage.getItem('token');
-        if (token) {
-            showApp();
-            loadUserData();
-        } else {
-            showAuth();
-        }
-    }
-
-    // Start the app
-    initApp();
+    // Start the app by checking authentication status
+    checkAuthStatus();
 });

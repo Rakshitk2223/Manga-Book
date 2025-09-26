@@ -8,7 +8,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">
     <!-- PDF.js libraries -->
-     <script type="module" src="script-supabase.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -80,28 +79,121 @@
     <div id="main-content" class="container mx-auto px-4 pt-24 pb-10 transition-all duration-300">
         <main>
             <div id="auth-container" class="auth-container">
-                <div id="login-form" class="table-container-glass p-8 rounded-lg shadow-lg text-center">
-                    <h2 class="text-3xl font-bold mb-6 text-white">Login</h2>
-                    <form class="auth-form">
-                        <input type="email" id="login-username" placeholder="Email" required>
-                        <input type="password" id="login-password" placeholder="Password" required>
-                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white">Login</button>
+                <!-- Login Form -->
+                <div id="login-form" class="table-container-glass p-8 rounded-lg shadow-lg text-center max-w-md mx-auto">
+                    <div class="mb-6">
+                        <h1 class="text-4xl font-bold text-red-500 mb-2">📚 M.M.M List</h1>
+                        <h2 class="text-2xl font-bold text-white">Welcome Back!</h2>
+                    </div>
+                    <form class="auth-form space-y-4">
+                        <div class="relative">
+                            <input type="text" name="emailOrUsername" placeholder="Email or Username" required 
+                                   class="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all">
+                        </div>
+                        <div class="relative">
+                            <input type="password" name="password" id="login-password" placeholder="Password" required 
+                                   class="w-full p-3 pr-12 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all">
+                            <button type="button" class="absolute right-3 top-3 text-gray-400 hover:text-white" onclick="togglePassword('login-password', this)">
+                                👁️
+                            </button>
+                        </div>
+                        <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-all">
+                            Sign In
+                        </button>
                     </form>
-                    <p class="text-gray-400 mt-4">
-                        Don't have an account? <span id="show-register" class="auth-toggle-link">Register here</span>
-                    </p>
+                    <div class="mt-6 pt-4 border-t border-gray-600 space-y-3">
+                        <p class="text-gray-400">
+                            <span id="show-reset" class="auth-toggle-link text-yellow-400 hover:text-yellow-300 cursor-pointer font-semibold">Forgot Password?</span>
+                        </p>
+                        <p class="text-gray-400">
+                            <span id="show-register" class="auth-toggle-link text-blue-400 hover:text-blue-300 cursor-pointer font-semibold">Create Account</span>
+                        </p>
+                    </div>
                 </div>
-                <div id="register-form" class="hidden table-container-glass p-8 rounded-lg shadow-lg text-center">
-                    <h2 class="text-3xl font-bold mb-6 text-white">Register</h2>
-                    <form class="auth-form">
-                        <input type="text" id="register-username" placeholder="Username" required>
-                        <input type="email" id="register-email" placeholder="Email" required>
-                        <input type="password" id="register-password" placeholder="Password (min 6 characters)" required>
-                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white">Register</button>
+
+                <!-- Register Form -->
+                <div id="register-form" class="hidden table-container-glass p-8 rounded-lg shadow-lg text-center max-w-md mx-auto">
+                    <div class="mb-6">
+                        <h1 class="text-4xl font-bold text-blue-500 mb-2">📚 M.M.M List</h1>
+                        <h2 class="text-2xl font-bold text-white">Create Account</h2>
+                    </div>
+                    <form class="auth-form space-y-4">
+                        <div class="relative">
+                            <input type="text" name="username" placeholder="Username" required 
+                                   class="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                        </div>
+                        <div class="relative">
+                            <input type="email" name="email" placeholder="Email Address" required 
+                                   class="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                        </div>
+                        <div class="relative">
+                            <input type="password" name="password" id="register-password" placeholder="Password (min 6 characters)" required 
+                                   class="w-full p-3 pr-12 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                            <button type="button" class="absolute right-3 top-3 text-gray-400 hover:text-white" onclick="togglePassword('register-password', this)">
+                                👁️
+                            </button>
+                        </div>
+                        <div class="relative">
+                            <input type="text" name="securityWord" placeholder="Security Word (e.g., pet's name, car model)" required 
+                                   class="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                        </div>
+                        <div class="text-left text-sm text-gray-400 bg-gray-800 p-3 rounded-lg">
+                            <p class="font-semibold text-yellow-400 mb-1">🔐 Security Word Examples:</p>
+                            <p class="text-xs">• Your pet's name (e.g., "Fluffy")</p>
+                            <p class="text-xs">• Your car model (e.g., "Honda")</p>
+                            <p class="text-xs">• Birth year (e.g., "1995")</p>
+                            <p class="text-xs">• Favorite food (e.g., "Pizza")</p>
+                            <p class="font-semibold text-red-400 mt-2">⚠️ Remember this - you'll need it to reset your password!</p>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-all">
+                            Create Account
+                        </button>
                     </form>
-                    <p class="text-gray-400 mt-4">
-                        Already have an account? <span id="show-login" class="auth-toggle-link">Login here</span>
-                    </p>
+                    <div class="mt-6 pt-4 border-t border-gray-600">
+                        <p class="text-gray-400">
+                            Already have an account? <span id="show-login" class="auth-toggle-link text-blue-400 hover:text-blue-300 cursor-pointer font-semibold">Sign In</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Password Reset Form -->
+                <div id="reset-form" class="hidden table-container-glass p-8 rounded-lg shadow-lg text-center max-w-md mx-auto">
+                    <div class="mb-6">
+                        <h1 class="text-4xl font-bold text-yellow-500 mb-2">🔐 M.M.M List</h1>
+                        <h2 class="text-2xl font-bold text-white">Reset Password</h2>
+                    </div>
+                    <form class="auth-form space-y-4">
+                        <div class="relative">
+                            <input type="text" name="emailOrUsername" placeholder="Email or Username" required 
+                                   class="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all">
+                        </div>
+                        <div class="relative">
+                            <input type="text" name="securityWord" placeholder="Security Word" required 
+                                   class="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all">
+                        </div>
+                        <div class="relative">
+                            <input type="password" name="newPassword" id="reset-password" placeholder="New Password" required 
+                                   class="w-full p-3 pr-12 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all">
+                            <button type="button" class="absolute right-3 top-3 text-gray-400 hover:text-white" onclick="togglePassword('reset-password', this)">
+                                👁️
+                            </button>
+                        </div>
+                        <div class="relative">
+                            <input type="password" name="confirmPassword" id="reset-confirm-password" placeholder="Confirm New Password" required 
+                                   class="w-full p-3 pr-12 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all">
+                            <button type="button" class="absolute right-3 top-3 text-gray-400 hover:text-white" onclick="togglePassword('reset-confirm-password', this)">
+                                👁️
+                            </button>
+                        </div>
+                        <button type="submit" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-4 rounded-lg transition-all">
+                            Reset Password
+                        </button>
+                    </form>
+                    <div class="mt-6 pt-4 border-t border-gray-600">
+                        <p class="text-gray-400">
+                            Remember your password? <span id="show-login-from-reset" class="auth-toggle-link text-yellow-400 hover:text-yellow-300 cursor-pointer font-semibold">Sign In</span>
+                        </p>
+                    </div>
                 </div>
             </div>
 
@@ -139,6 +231,6 @@
         </div>
     </footer>
 
-    <script type="module" src="script-supabase.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>

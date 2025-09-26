@@ -59,27 +59,59 @@ body::before {
 
 /* Auth Form Styling */
 .auth-container {
-    max-width: 400px;
-    margin: 10rem auto 0 auto;
+    max-width: 500px;
+    margin: 8rem auto 0 auto;
+    padding: 0 1rem;
 }
+
 .auth-form input {
-    background-color: #333;
-    border: 1px solid #555;
-    color: white;
-    padding: 0.75rem;
-    border-radius: 0.25rem;
-    width: 100%;
-    margin-bottom: 1rem;
+    transition: all 0.3s ease;
 }
-.auth-form button {
-    width: 100%;
-    padding: 0.75rem;
-    border-radius: 0.25rem;
-    font-weight: bold;
-    transition: background-color 0.2s;
+
+.auth-form input:focus {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
+
 .auth-toggle-link {
     cursor: pointer;
-    color: #e50914;
-    text-decoration: underline;
+    transition: all 0.2s ease;
+}
+
+.auth-toggle-link:hover {
+    transform: translateY(-1px);
+}
+
+/* Enhanced glassmorphism effect */
+.table-container-glass {
+    background: rgba(31, 41, 55, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Button hover effects */
+button {
+    transition: all 0.2s ease;
+}
+
+button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Notification improvements */
+.notification {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
 }

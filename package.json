@@ -1,0 +1,14 @@
+{
+  "name": "manga-list-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for Manga List Manager",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 3000",
+    "dev": "python -m http.server 3000",
+    "serve": "npx http-server -p 3000"
+  },
+  "keywords": ["manga", "list", "frontend"],
+  "author": "",
+  "license": "ISC"
+}
