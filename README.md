@@ -1,6 +1,8 @@
-# Manga List Manager
+# 📚 Manga List Manager
 
 A full-stack web application to manage your manga and comic book collection with user authentication, cloud storage, and a modern dark-themed interface.
+
+**🌟 [Try it live at weebslist.netlify.app](https://weebslist.netlify.app)**
 
 ## Features
 
@@ -20,7 +22,15 @@ A full-stack web application to manage your manga and comic book collection with
 - **Authentication**: JWT + bcrypt
 - **API**: Jikan API for manga data
 
-## Quick Start
+## 🌐 Live Demo
+
+**Try the app now:** [https://weebslist.netlify.app](https://weebslist.netlify.app)
+
+- Create your account and start managing your manga collection
+- All data is stored securely in the cloud
+- Works on desktop, tablet, and mobile
+
+## 🛠️ Local Development
 
 ### Prerequisites
 - Node.js (v14+)
@@ -61,6 +71,19 @@ A full-stack web application to manage your manga and comic book collection with
 - **Invalid token errors**: Check JWT_SECRET in .env file
 - **CORS errors**: Verify frontend URL matches backend configuration
 - **Account creation fails**: Ensure backend is running on port 5001
+
+## 🚀 Deployment
+
+This app is deployed using:
+- **Frontend**: [Netlify](https://netlify.com) - `https://weebslist.netlify.app`
+- **Backend**: [Render](https://render.com) - `https://manga-list-backend-ywyn.onrender.com`
+- **Database**: [MongoDB Atlas](https://mongodb.com/atlas) - Free tier
+
+### Deploy Your Own Copy
+1. Fork this repository
+2. Deploy backend to Render (connect GitHub repo, set environment variables)
+3. Deploy frontend to Netlify (drag & drop or connect GitHub)
+4. Update API URLs in `script.js`
 
 ## License
 
