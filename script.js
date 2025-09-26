@@ -80,7 +80,160 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Global Data Store ---
     let categoriesData = {};
     
+    // --- Network Status Monitoring ---
+    function updateNetworkStatus() {
+        if (!navigator.onLine) {
+            showNotification('⚠️ No internet connection detected', 'warn');
+        }
+    }
+    
+    // Monitor network status
+    window.addEventListener('online', () => {
+        showNotification('✅ Internet connection restored', 'success');
+    });
+    
+    window.addEventListener('offline', () => {
+        showNotification('❌ Internet connection lost', 'error');
+    });
+    
+    // --- Connection Test Function ---
+    async function testConnection() {
+        try {
+            console.log('Testing connection to API...');
+            const response = await fetch(`${API_URL}/health`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                console.log('✅ API connection successful');
+                return true;
+            } else {
+                console.log('⚠️ API responded with status:', response.status);
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ API connection failed:', error);
+            return false;
+        }
+    }
+    
+    // Debug connection function
+    async function debugConnection() {
+        showNotification('Testing connection...', 'info');
+        
+        const debugInfo = {
+            currentURL: window.location.href,
+            apiURL: API_URL,
+            userAgent: navigator.userAgent,
+            timestamp: new Date().toISOString(),
+            networkOnline: navigator.onLine,
+            isRenderAPI: API_URL.includes('render.com')
+        };
+        
+        console.log('🔍 Debug Info:', debugInfo);
+        
+        try {
+            // Test basic connectivity first
+            if (!navigator.onLine) {
+                showNotification('❌ No internet connection detected', 'error');
+                return;
+            }
+            
+            // Test if it's a Render.com cold start issue
+            if (debugInfo.isRenderAPI) {
+                showNotification('🔄 Testing Render.com backend (may take 30+ seconds for cold start)...', 'info');
+            }
+            
+            // Test basic connectivity with longer timeout for Render
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 seconds for Render cold start
+            
+            const testResponse = await fetch(`${API_URL}/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ emailOrUsername: 'test', password: 'test' }),
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            console.log('Test response status:', testResponse.status);
+            console.log('Test response headers:', Object.fromEntries(testResponse.headers.entries()));
+            
+            if (testResponse.status === 404 || testResponse.status === 401 || testResponse.status === 400) {
+                // These are expected errors for invalid credentials, but mean the server is responding
+                showNotification('✅ Server is responding! Registration should work now.', 'success');
+                setTimeout(() => {
+                    showNotification('💡 The server was likely in "cold start" mode. Try registering again.', 'info');
+                }, 2000);
+            } else if (testResponse.ok) {
+                showNotification('✅ Connection test passed!', 'success');
+            } else {
+                showNotification(`⚠️ Server responded with status ${testResponse.status}`, 'warn');
+            }
+            
+            // Display additional debug info
+            setTimeout(() => {
+                showNotification(`🔍 Using API: ${API_URL}`, 'info');
+            }, 3000);
+            
+        } catch (error) {
+            console.error('Debug test failed:', error);
+            
+            if (error.name === 'AbortError') {
+                showNotification('❌ Connection test timed out. The server may be experiencing issues.', 'error');
+                if (debugInfo.isRenderAPI) {
+                    setTimeout(() => {
+                        showNotification('💡 Render.com servers can take up to 60 seconds to wake up. Please wait and try again.', 'info');
+                    }, 2000);
+                }
+            } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                showNotification('❌ Cannot connect to server. Check your internet connection.', 'error');
+            } else {
+                showNotification(`❌ Connection test failed: ${error.message}`, 'error');
+            }
+        }
+    }
+    
     // --- Authentication Functions ---
+    
+    // Initial connection check
+    async function initialConnectionCheck() {
+        // Only run this check if we're not on localhost (for production users)
+        if (window.location.hostname !== 'localhost') {
+            console.log('Running initial connection check...');
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ emailOrUsername: 'connection-test', password: 'test' })
+                });
+                
+                console.log('Initial connection check - Status:', response.status);
+                
+                if (response.status === 0) {
+                    console.warn('⚠️ Potential CORS or connectivity issue detected');
+                    setTimeout(() => {
+                        showNotification('⚠️ Connection issue detected. Use the debug tool if you have problems.', 'warn');
+                    }, 2000);
+                }
+            } catch (error) {
+                console.warn('Initial connection check failed:', error);
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    setTimeout(() => {
+                        showNotification('⚠️ Server connection issue detected. Check your internet connection.', 'warn');
+                    }, 2000);
+                }
+            }
+        }
+    }
     
     // Check if user is authenticated on page load
     async function checkAuthStatus() {
@@ -132,15 +285,32 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             showNotification('Signing in...', 'info');
             
+            // Add timeout for login as well
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            
+            console.log('Attempting login to:', `${API_URL}/auth/login`);
+            
             const response = await fetch(`${API_URL}/auth/login`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 },
-                body: JSON.stringify({ emailOrUsername, password })
+                body: JSON.stringify({ emailOrUsername, password }),
+                signal: controller.signal
             });
             
-            const data = await response.json();
+            clearTimeout(timeoutId);
+            console.log('Login response status:', response.status);
+            
+            let data;
+            try {
+                data = await response.json();
+            } catch (jsonError) {
+                console.error('Failed to parse login response as JSON:', jsonError);
+                throw new Error('Server returned invalid response format');
+            }
             
             if (response.ok) {
                 authToken = data.token;
@@ -151,20 +321,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 await showAppView();
                 await loadMangaData();
             } else {
-                // Simple error messages
+                console.error('Login failed with status:', response.status, 'Data:', data);
+                
                 if (response.status === 404) {
                     showNotification('User does not exist', 'error');
                 } else if (response.status === 401) {
                     showNotification('Incorrect password', 'error');
                 } else if (response.status === 429) {
-                    showNotification('Too many attempts. Please wait.', 'warn');
+                    showNotification('Too many attempts. Please wait a few minutes.', 'warn');
+                } else if (response.status === 500) {
+                    showNotification('Server error. Please try again in a few minutes.', 'error');
                 } else {
-                    showNotification(data.message || 'Login failed', 'error');
+                    showNotification(data.message || `Login failed (Error ${response.status})`, 'error');
                 }
             }
         } catch (error) {
-            console.error('Login error:', error);
-            showNotification('Login failed. Please try again.', 'error');
+            console.error('Login error details:', error);
+            
+            if (error.name === 'AbortError') {
+                showNotification('Login timed out. Please check your internet connection.', 'error');
+            } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                showNotification('Cannot connect to server. Please check your internet connection.', 'error');
+                console.log('Network error - API URL:', API_URL);
+            } else {
+                showNotification(`Login failed: ${error.message}`, 'error');
+            }
         }
     }
     
@@ -195,15 +376,35 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             showNotification('Creating account...', 'info');
             
+            // Add timeout and retry logic
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+            
+            console.log('Attempting registration to:', `${API_URL}/auth/register`);
+            
             const response = await fetch(`${API_URL}/auth/register`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 },
-                body: JSON.stringify({ username, email, password, securityWord })
+                body: JSON.stringify({ username, email, password, securityWord }),
+                signal: controller.signal
             });
             
-            const data = await response.json();
+            clearTimeout(timeoutId);
+            console.log('Registration response status:', response.status);
+            console.log('Registration response headers:', Object.fromEntries(response.headers.entries()));
+            
+            let data;
+            try {
+                data = await response.json();
+                console.log('Registration response data:', data);
+            } catch (jsonError) {
+                console.error('Failed to parse response as JSON:', jsonError);
+                console.log('Raw response text:', await response.text());
+                throw new Error('Server returned invalid response format');
+            }
             
             if (response.ok) {
                 authToken = data.token;
@@ -214,16 +415,57 @@ document.addEventListener('DOMContentLoaded', () => {
                 await showAppView();
                 await loadMangaData();
             } else {
-                // Simple error messages
+                // Detailed error messages based on status codes
+                console.error('Registration failed with status:', response.status, 'Data:', data);
+                
                 if (response.status === 409) {
-                    showNotification(data.message || 'Account already exists', 'error');
+                    showNotification(data.message || 'Username or email already exists', 'error');
+                } else if (response.status === 400) {
+                    showNotification(data.message || 'Invalid registration data. Please check all fields.', 'error');
+                } else if (response.status === 429) {
+                    showNotification('Too many registration attempts. Please wait a few minutes and try again.', 'warn');
+                } else if (response.status === 500) {
+                    showNotification('Server error. Please try again in a few minutes.', 'error');
+                } else if (response.status === 503) {
+                    showNotification('Service temporarily unavailable. Please try again later.', 'error');
+                } else if (response.status === 0) {
+                    showNotification('Connection blocked. This might be a CORS or firewall issue.', 'error');
                 } else {
-                    showNotification(data.message || 'Registration failed', 'error');
+                    showNotification(data.message || `Registration failed (Error ${response.status}). Please try again.`, 'error');
                 }
+                
+                // Suggest using the debug tool
+                setTimeout(() => {
+                    showNotification('💡 Try the "Having connection issues?" button below for more help.', 'info');
+                }, 3000);
             }
         } catch (error) {
-            console.error('Registration error:', error);
-            showNotification('Registration failed. Please try again.', 'error');
+            console.error('Registration error details:', error);
+            
+            if (error.name === 'AbortError') {
+                showNotification('Registration timed out. Please check your internet connection and try again.', 'error');
+            } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                showNotification('Cannot connect to server. Please check your internet connection or try again later.', 'error');
+                console.log('Network error - API URL:', API_URL);
+                console.log('Current hostname:', window.location.hostname);
+            } else if (error.message.includes('CORS')) {
+                showNotification('Connection blocked by browser security. Please try refreshing the page.', 'error');
+            } else {
+                showNotification(`Registration failed: ${error.message}. Please try again.`, 'error');
+            }
+            
+            // Suggest alternative solutions
+            setTimeout(() => {
+                showNotification('💡 Tip: If registration keeps failing, try the debug test below or use a different browser.', 'info');
+            }, 3000);
+            
+            // Log additional debug information
+            console.log('🔍 Registration Debug Info:');
+            console.log('- API URL:', API_URL);
+            console.log('- Current hostname:', window.location.hostname);
+            console.log('- User agent:', navigator.userAgent);
+            console.log('- Network online:', navigator.onLine);
+            console.log('- Registration data (sanitized):', { username, email: email.substring(0, 3) + '***', hasPassword: !!password, hasSecurityWord: !!securityWord });
         }
     }
     
@@ -1476,6 +1718,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     const showLoginFromResetLink = document.getElementById('show-login-from-reset');
+    
+    // Debug connection button
+    const debugConnectionBtn = document.getElementById('debug-connection-btn');
+    if (debugConnectionBtn) {
+        debugConnectionBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            debugConnection();
+        });
+        console.log('Debug connection button listener attached');
+    }
     if (showLoginFromResetLink) {
         showLoginFromResetLink.addEventListener('click', (e) => {
             e.preventDefault();
@@ -1533,6 +1785,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Initialization ---
+    // Run initial connection check for production users
+    initialConnectionCheck();
+    
     // Start the app by checking authentication status
     checkAuthStatus();
 });
