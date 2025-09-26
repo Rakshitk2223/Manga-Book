@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: manga-list-backend
+    env: node
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5001
+      - key: MONGO_URI
+        fromDatabase:
+          name: manga-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        value: https://weebslist.netlify.app
+
+databases:
+  - name: manga-db
+    databaseName: manga-book
+    user: manga-user

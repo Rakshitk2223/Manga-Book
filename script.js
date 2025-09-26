@@ -2,7 +2,9 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- API Configuration ---
-    const API_URL = 'http://localhost:5001/api';
+    const API_URL = window.location.hostname === 'localhost' 
+        ? 'http://localhost:5001/api'
+        : 'https://manga-list-backend-ywyn.onrender.com/api';
     
     // --- Authentication State ---
     let currentUser = null;
