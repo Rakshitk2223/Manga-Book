@@ -961,28 +961,88 @@ document.addEventListener('DOMContentLoaded', () => {
         modalContent.innerHTML = `<p class="text-white text-center text-lg">Fetching details for ${entry.name}...</p>`;
 
         try {
-            const response = await fetch(`https://api.jikan.moe/v4/manga?q=${encodeURIComponent(entry.name)}&limit=1`);
-            if (!response.ok) throw new Error(`API error: ${response.statusText}`);
+            let manga = null;
+            let source = 'Unknown';
 
-            const data = await response.json();
-            const manga = data.data[0];
+            // Check if we have stored metadata from previous API calls
+            if (entry.description && entry.genres && entry.apiSource) {
+                console.log(`Using stored metadata from ${entry.apiSource} for ${entry.name}`);
+                
+                // Use stored metadata
+                manga = {
+                    title: entry.name,
+                    title_japanese: '',
+                    synopsis: entry.description,
+                    genres: Array.isArray(entry.genres) ? entry.genres.map(g => ({ name: g })) : [],
+                    score: entry.apiScore || entry.averageScore || 'N/A',
+                    rank: 'N/A',
+                    status: entry.apiStatus || 'Unknown',
+                    images: {
+                        jpg: {
+                            large_image_url: entry.imageUrl
+                        }
+                    }
+                };
+                source = entry.apiSource;
+            } else {
+                // Fetch fresh data using our multi-API approach
+                console.log(`Fetching fresh details for ${entry.name}`);
+                
+                const result = await fetchMangaCover(entry.name);
+                if (result) {
+                    manga = {
+                        title: result.title || entry.name,
+                        title_japanese: '',
+                        synopsis: result.description || 'No description available.',
+                        genres: Array.isArray(result.genres) ? result.genres.map(g => ({ name: g })) : [],
+                        score: result.score || result.averageScore || 'N/A',
+                        rank: 'N/A',
+                        status: result.status || 'Unknown',
+                        images: {
+                            jpg: {
+                                large_image_url: result.imageUrl || entry.imageUrl
+                            }
+                        }
+                    };
+                    source = result.source;
+                    
+                    // Update entry with new metadata
+                    entry.description = result.description;
+                    entry.genres = result.genres;
+                    entry.apiScore = result.score || result.averageScore;
+                    entry.apiStatus = result.status;
+                    entry.apiSource = result.source;
+                } else {
+                    // Fallback to Jikan API (original behavior)
+                    console.log(`Falling back to Jikan API for ${entry.name}`);
+                    const response = await fetch(`https://api.jikan.moe/v4/manga?q=${encodeURIComponent(entry.name)}&limit=1`);
+                    if (!response.ok) throw new Error(`API error: ${response.statusText}`);
+
+                    const data = await response.json();
+                    manga = data.data[0];
+                    source = 'Jikan (Fallback)';
+                }
+            }
 
             if (!manga) {
                 modalContent.innerHTML = `<p class="text-red-400 text-center">Could not find detailed information for "${entry.name}".</p>`;
                 return;
             }
 
-            const genres = manga.genres.map(g => `<span class="bg-red-600 text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">${g.name}</span>`).join(' ');
+            const genres = manga.genres && manga.genres.length > 0 
+                ? manga.genres.map(g => `<span class="bg-red-600 text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">${typeof g === 'string' ? g : g.name}</span>`).join(' ')
+                : '<span class="text-gray-400 text-sm">No genres available</span>';
 
             modalContent.innerHTML = `
                 <button id="modal-close-btn" class="absolute top-2 right-2 md:top-4 md:right-4 text-gray-400 hover:text-white text-2xl md:text-3xl z-10 bg-gray-800 rounded-full w-8 h-8 md:w-10 md:h-10 flex items-center justify-center">&times;</button>
                 <div class="flex flex-col md:flex-row gap-4 md:gap-6 pt-8 md:pt-0">
                     <div class="flex-shrink-0 text-center md:text-left">
-                        <img src="${manga.images.jpg.large_image_url}" alt="${manga.title}" class="w-40 md:w-48 h-auto object-cover rounded-md mx-auto md:mx-0">
+                        <img src="${manga.images?.jpg?.large_image_url || entry.imageUrl || 'https://via.placeholder.com/200x300?text=No+Image'}" alt="${manga.title}" class="w-40 md:w-48 h-auto object-cover rounded-md mx-auto md:mx-0">
                     </div>
                     <div class="flex-grow">
                         <h2 class="text-2xl md:text-3xl font-bold text-white mb-2 text-center md:text-left">${manga.title}</h2>
-                        <p class="text-base md:text-lg text-gray-300 mb-4 text-center md:text-left">${manga.title_japanese || ''}</p>
+                        <p class="text-base md:text-lg text-gray-300 mb-2 text-center md:text-left">${manga.title_japanese || ''}</p>
+                        <p class="text-xs text-blue-400 mb-4 text-center md:text-left">Source: ${source}</p>
                         <div class="flex flex-wrap items-center justify-center md:justify-start gap-2 md:gap-4 mb-4 text-yellow-400">
                             <span class="text-sm md:text-base">⭐ ${manga.score || 'N/A'}</span>
                             <span class="text-sm md:text-base">#${manga.rank || 'N/A'}</span>
@@ -1001,7 +1061,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             console.error("Failed to fetch details:", error);
-            modalContent.innerHTML = `<p class="text-red-400 text-center">Error fetching details. Please check the console.</p>`;
+            modalContent.innerHTML = `
+                <button id="modal-close-btn" class="absolute top-2 right-2 md:top-4 md:right-4 text-gray-400 hover:text-white text-2xl md:text-3xl z-10 bg-gray-800 rounded-full w-8 h-8 md:w-10 md:h-10 flex items-center justify-center">&times;</button>
+                <p class="text-red-400 text-center pt-8">Error fetching details. Please try again.</p>
+            `;
+            document.getElementById('modal-close-btn').addEventListener('click', closeDetailsModal);
         }
     }
 
