@@ -313,6 +313,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (downloadContainer) downloadContainer.classList.add('hidden');
         if (addCategorySidebarBtn) addCategorySidebarBtn.classList.add('hidden');
         if (logoutBtn) logoutBtn.classList.add('hidden');
+        
+        // Hide welcome message
+        const welcomeUser = document.getElementById('welcome-user');
+        if (welcomeUser) welcomeUser.classList.add('hidden');
     }
     
     // Show main application view
@@ -326,6 +330,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (downloadContainer) downloadContainer.classList.remove('hidden');
         if (addCategorySidebarBtn) addCategorySidebarBtn.classList.remove('hidden');
         if (logoutBtn) logoutBtn.classList.remove('hidden');
+        
+        // Show welcome message with username
+        const welcomeUser = document.getElementById('welcome-user');
+        const usernameDisplay = document.getElementById('username-display');
+        if (currentUser && welcomeUser && usernameDisplay) {
+            usernameDisplay.textContent = currentUser.username;
+            welcomeUser.classList.remove('hidden');
+        }
     }
     
     // Toggle between login, register, and reset forms
@@ -520,23 +532,25 @@ document.addEventListener('DOMContentLoaded', () => {
             const genres = manga.genres.map(g => `<span class="bg-red-600 text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">${g.name}</span>`).join(' ');
 
             modalContent.innerHTML = `
-                <button id="modal-close-btn" class="absolute top-4 right-4 text-gray-400 hover:text-white">&times;</button>
-                <div class="flex flex-col md:flex-row gap-6">
-                    <div class="flex-shrink-0">
-                        <img src="${manga.images.jpg.large_image_url}" alt="${manga.title}" class="w-48 h-auto object-cover rounded-md mx-auto">
+                <button id="modal-close-btn" class="absolute top-2 right-2 md:top-4 md:right-4 text-gray-400 hover:text-white text-2xl md:text-3xl z-10 bg-gray-800 rounded-full w-8 h-8 md:w-10 md:h-10 flex items-center justify-center">&times;</button>
+                <div class="flex flex-col md:flex-row gap-4 md:gap-6 pt-8 md:pt-0">
+                    <div class="flex-shrink-0 text-center md:text-left">
+                        <img src="${manga.images.jpg.large_image_url}" alt="${manga.title}" class="w-40 md:w-48 h-auto object-cover rounded-md mx-auto md:mx-0">
                     </div>
                     <div class="flex-grow">
-                        <h2 class="text-3xl font-bold text-white mb-2">${manga.title}</h2>
-                        <p class="text-lg text-gray-300 mb-4">${manga.title_japanese || ''}</p>
-                        <div class="flex items-center space-x-4 mb-4 text-yellow-400">
-                            <span>⭐ ${manga.score || 'N/A'}</span>
-                            <span>#${manga.rank || 'N/A'}</span>
-                            <span class="px-2 py-1 bg-gray-700 text-white rounded-md text-sm">${manga.status || 'Unknown'}</span>
+                        <h2 class="text-2xl md:text-3xl font-bold text-white mb-2 text-center md:text-left">${manga.title}</h2>
+                        <p class="text-base md:text-lg text-gray-300 mb-4 text-center md:text-left">${manga.title_japanese || ''}</p>
+                        <div class="flex flex-wrap items-center justify-center md:justify-start gap-2 md:gap-4 mb-4 text-yellow-400">
+                            <span class="text-sm md:text-base">⭐ ${manga.score || 'N/A'}</span>
+                            <span class="text-sm md:text-base">#${manga.rank || 'N/A'}</span>
+                            <span class="px-2 py-1 bg-gray-700 text-white rounded-md text-xs md:text-sm">${manga.status || 'Unknown'}</span>
                         </div>
-                        <div class="mb-4">
+                        <div class="mb-4 text-center md:text-left">
                             ${genres}
                         </div>
-                        <p class="text-gray-400 text-sm max-h-48 overflow-y-auto pr-2">${manga.synopsis || 'No synopsis available.'}</p>
+                        <div class="max-h-32 md:max-h-48 overflow-y-auto">
+                            <p class="text-gray-400 text-sm md:text-base leading-relaxed">${manga.synopsis || 'No synopsis available.'}</p>
+                        </div>
                     </div>
                 </div>
             `;
@@ -553,6 +567,15 @@ document.addEventListener('DOMContentLoaded', () => {
         e.stopPropagation();
         toggleSidebar();
     });
+
+    // Sidebar close button for mobile
+    const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
+    if (sidebarCloseBtn) {
+        sidebarCloseBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleSidebar();
+        });
+    }
 
     overlay.addEventListener('click', toggleSidebar);
 
@@ -996,17 +1019,17 @@ document.addEventListener('DOMContentLoaded', () => {
         entries.sort((a, b) => a.name.localeCompare(b.name));
 
         const tableHTML = `
-            <div class="flex items-center justify-between mb-4">
-                <h2 id="${categoryId}" class="text-2xl font-bold italic text-red-500">${category}</h2>
-                <div class="flex items-center space-x-2">
+            <div class="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-2">
+                <h2 id="${categoryId}" class="text-xl md:text-2xl font-bold italic text-red-500">${category}</h2>
+                <div class="flex flex-wrap items-center gap-2">
                     <span class="text-gray-400 text-sm">${entries.length} manga</span>
-                    <button class="add-entry-btn bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded-lg text-sm transition-all transform hover:scale-105 shadow-lg" data-category="${category}" title="Add New Manga">
-                        ➕ Add Manga
+                    <button class="add-entry-btn bg-green-600 hover:bg-green-700 text-white font-bold px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm transition-all transform hover:scale-105 shadow-lg min-h-[44px]" data-category="${category}" title="Add New Manga">
+                        ➕ <span class="hidden sm:inline">Add Manga</span>
                     </button>
-                    <button class="rename-category-btn bg-yellow-500 hover:bg-yellow-600 text-white font-bold p-2 rounded-lg text-xs" data-category="${category}" title="Rename Category">
+                    <button class="rename-category-btn bg-yellow-500 hover:bg-yellow-600 text-white font-bold p-2 rounded-lg text-xs min-h-[44px] min-w-[44px]" data-category="${category}" title="Rename Category">
                         ✏️
                     </button>
-                    <button class="delete-category-btn bg-red-600 hover:bg-red-700 text-white font-bold p-2 rounded-lg text-xs" data-category="${category}" title="Delete Category">
+                    <button class="delete-category-btn bg-red-600 hover:bg-red-700 text-white font-bold p-2 rounded-lg text-xs min-h-[44px] min-w-[44px]" data-category="${category}" title="Delete Category">
                         🗑️
                     </button>
                 </div>
@@ -1014,58 +1037,45 @@ document.addEventListener('DOMContentLoaded', () => {
             
             <!-- Rename View -->
             <div class="category-rename-form hidden mb-4">
-                <div class="flex justify-center items-center space-x-2">
-                    <input type="text" class="rename-input bg-gray-800 text-white w-1/2 p-2 rounded-l-md focus:outline-none focus:ring-2 focus:ring-yellow-500" value="${category}">
-                    <button class="save-rename-btn bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md text-sm" data-old-name="${category}">Save</button>
-                    <button class="cancel-rename-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-md text-sm">Cancel</button>
+                <div class="flex flex-col md:flex-row justify-center items-center gap-2">
+                    <input type="text" class="rename-input bg-gray-800 text-white w-full md:w-1/2 p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 min-h-[44px]" value="${category}">
+                    <div class="flex gap-2 w-full md:w-auto">
+                        <button class="save-rename-btn bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-md text-sm flex-1 md:flex-none min-h-[44px]" data-old-name="${category}">Save</button>
+                        <button class="cancel-rename-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-md text-sm flex-1 md:flex-none min-h-[44px]">Cancel</button>
+                    </div>
                 </div>
             </div>
             
             <!-- Delete Confirmation View -->
             <div class="category-delete-confirm hidden mb-4">
-                <div class="flex justify-center items-center space-x-4">
-                    <span class="text-white">Are you sure you want to delete "${category}"?</span>
-                    <button class="confirm-delete-btn bg-red-700 hover:bg-red-800 text-white font-bold py-2 px-4 rounded-md text-sm" data-category="${category}">Yes, Delete</button>
-                    <button class="cancel-delete-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-md text-sm">Cancel</button>
+                <div class="flex flex-col md:flex-row justify-center items-center gap-4">
+                    <span class="text-white text-center">Are you sure you want to delete "${category}"?</span>
+                    <div class="flex gap-2 w-full md:w-auto">
+                        <button class="confirm-delete-btn bg-red-700 hover:bg-red-800 text-white font-bold py-3 px-4 rounded-md text-sm flex-1 md:flex-none min-h-[44px]" data-category="${category}">Yes, Delete</button>
+                        <button class="cancel-delete-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-md text-sm flex-1 md:flex-none min-h-[44px]">Cancel</button>
+                    </div>
                 </div>
             </div>
-                <!-- Rename View -->
-                <div class="category-rename-form hidden">
-                    <div class="flex justify-center items-center space-x-2">
-                        <input type="text" class="rename-input bg-gray-800 text-white w-1/2 p-2 rounded-l-md focus:outline-none focus:ring-2 focus:ring-yellow-500" value="${category}">
-                        <button class="save-rename-btn bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md text-sm" data-old-name="${category}">Save</button>
-                        <button class="cancel-rename-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-md text-sm">Cancel</button>
-                    </div>
-                </div>
-                <!-- Delete Confirmation View -->
-                <div class="category-delete-confirm hidden">
-                    <div class="flex justify-center items-center space-x-4">
-                        <span class="text-white">Are you sure?</span>
-                        <button class="confirm-delete-btn bg-red-700 hover:bg-red-800 text-white font-bold py-2 px-4 rounded-md text-sm" data-category="${category}">Yes, Delete</button>
-                        <button class="cancel-delete-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-md text-sm">No</button>
-                    </div>
-                </div>
-            </h2>
-            <div class="overflow-x-auto">
+            <div class="table-wrapper overflow-x-auto -webkit-overflow-scrolling-touch">
                 <table class="min-w-full table-auto">
                     <thead>
                         <tr>
-                            <th class="px-4 py-2 text-center">S.No</th>
-                            <th class="px-2 py-2 text-center">Cover</th>
-                            <th class="px-4 py-2 text-left">Name</th>
-                            <th class="px-4 py-2 text-center">Chapter</th>
-                            <th class="px-4 py-2 text-center">Actions</th>
+                            <th class="px-2 md:px-4 py-2 text-center text-xs md:text-sm">S.No</th>
+                            <th class="px-1 md:px-2 py-2 text-center text-xs md:text-sm">Cover</th>
+                            <th class="px-2 md:px-4 py-2 text-left text-xs md:text-sm">Name</th>
+                            <th class="px-2 md:px-4 py-2 text-center text-xs md:text-sm">Chapter</th>
+                            <th class="px-2 md:px-4 py-2 text-center text-xs md:text-sm">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${entries.length === 0 ? `
                             <tr>
-                                <td colspan="5" class="border-t border-gray-700 px-4 py-8 text-center">
+                                <td colspan="5" class="border-t border-gray-700 px-2 md:px-4 py-8 text-center">
                                     <div class="text-gray-400">
-                                        <div class="text-4xl mb-2">📚</div>
-                                        <p class="text-lg mb-2">No manga in this category yet</p>
+                                        <div class="text-3xl md:text-4xl mb-2">📚</div>
+                                        <p class="text-base md:text-lg mb-2">No manga in this category yet</p>
                                         <p class="text-sm mb-4">Click "Add Manga" to get started!</p>
-                                        <button class="add-entry-btn bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded-lg transition-all transform hover:scale-105" data-category="${category}">
+                                        <button class="add-entry-btn bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-3 rounded-lg transition-all transform hover:scale-105 min-h-[44px]" data-category="${category}">
                                             ➕ Add Your First Manga
                                         </button>
                                     </div>
@@ -1073,15 +1083,17 @@ document.addEventListener('DOMContentLoaded', () => {
                             </tr>
                         ` : entries.map((entry, index) => `
                             <tr data-category="${category}" data-index="${index}" data-action="open-details" class="cursor-pointer hover:bg-gray-800 transition-colors">
-                                <td class="border-t border-gray-700 px-4 py-2 text-center">${index + 1}</td>
-                                <td class="border-t border-gray-700 px-2 py-2 text-center">
-                                    <img src="${entry.imageUrl || 'https://via.placeholder.com/80x120.png?text=No+Image'}" alt="${entry.name}" class="w-20 h-28 object-cover rounded-md mx-auto pointer-events-none">
+                                <td class="border-t border-gray-700 px-2 md:px-4 py-2 text-center text-sm">${index + 1}</td>
+                                <td class="border-t border-gray-700 px-1 md:px-2 py-2 text-center">
+                                    <img src="${entry.imageUrl || 'https://via.placeholder.com/60x90.png?text=No+Image'}" alt="${entry.name}" class="w-12 h-16 md:w-20 md:h-28 object-cover rounded-md mx-auto pointer-events-none">
                                 </td>
-                                <td class="border-t border-gray-700 px-4 py-2" contenteditable="true" data-field="name" data-action="edit">${entry.name}</td>
-                                <td class="border-t border-gray-700 px-4 py-2 text-center" contenteditable="true" data-field="chapter" data-action="edit">${entry.chapter}</td>
-                                <td class="border-t border-gray-700 px-4 py-2 text-center">
-                                    <button class="delete-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs" data-action="delete">Delete</button>
-                                    <button class="refresh-cover-btn bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-xs ml-1" data-action="refresh">R</button>
+                                <td class="border-t border-gray-700 px-2 md:px-4 py-2 text-sm md:text-base" contenteditable="true" data-field="name" data-action="edit">${entry.name}</td>
+                                <td class="border-t border-gray-700 px-2 md:px-4 py-2 text-center text-sm md:text-base" contenteditable="true" data-field="chapter" data-action="edit">${entry.chapter}</td>
+                                <td class="border-t border-gray-700 px-2 md:px-4 py-2 text-center">
+                                    <div class="flex flex-col md:flex-row gap-1 md:gap-2 items-center justify-center">
+                                        <button class="delete-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs min-h-[32px] w-full md:w-auto" data-action="delete">Del</button>
+                                        <button class="refresh-cover-btn bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-xs min-h-[32px] w-full md:w-auto" data-action="refresh" title="Refresh Cover">🔄</button>
+                                    </div>
                                 </td>
                             </tr>
                         `).join('')}

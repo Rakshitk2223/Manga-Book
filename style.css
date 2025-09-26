@@ -1,13 +1,18 @@
 body {
     /* Set the background image */
     background-image: url('Background/bg1.jpeg');
-    background-size: cover; /* Cover the entire page */
-    background-position: center center; /* Center the image */
-    background-attachment: fixed; /* Make the background fixed on scroll */
-    background-repeat: no-repeat; /* Do not repeat the image */
+    background-size: cover;
+    /* Cover the entire page */
+    background-position: center center;
+    /* Center the image */
+    background-attachment: fixed;
+    /* Make the background fixed on scroll */
+    background-repeat: no-repeat;
+    /* Do not repeat the image */
 
     color: #fff;
-    position: relative; /* Required for the overlay */
+    position: relative;
+    /* Required for the overlay */
     z-index: 0;
 }
 
@@ -19,26 +24,42 @@ body::before {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(20, 20, 20, 0.95); /* Dark overlay with 75% opacity */
-    z-index: -1; /* Place it behind the content but on top of the background image */
+    background-color: rgba(20, 20, 20, 0.95);
+    /* Dark overlay with 75% opacity */
+    z-index: -1;
+    /* Place it behind the content but on top of the background image */
 }
+
+/* Mobile-first responsive design */
+@media (max-width: 768px) {
+    body {
+        background-attachment: scroll;
+        /* Better performance on mobile */
+    }
+}
+
 .netflix-red {
     background-color: #e50914;
 }
+
 .netflix-red-text {
     color: #e50914;
 }
+
 /* Custom scrollbar for a more modern look */
 ::-webkit-scrollbar {
     width: 8px;
 }
+
 ::-webkit-scrollbar-track {
     background: #1f1f1f;
 }
+
 ::-webkit-scrollbar-thumb {
     background: #555;
     border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
     background: #e50914;
 }
@@ -54,7 +75,16 @@ body::before {
 }
 
 #main-content {
-    padding-left: 5rem; /* Increased padding to avoid overlap with the new button container */
+    padding-left: 5rem;
+    /* Increased padding to avoid overlap with the new button container */
+}
+
+/* Responsive adjustments for main content */
+@media (max-width: 768px) {
+    #main-content {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
 }
 
 /* Auth Form Styling */
@@ -110,8 +140,395 @@ button:hover {
         transform: translateX(100%);
         opacity: 0;
     }
+
     to {
         transform: translateX(0);
         opacity: 1;
+    }
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+
+/* Mobile Devices (320px - 768px) */
+@media (max-width: 768px) {
+
+    /* Header adjustments */
+    header {
+        padding: 0.75rem 1rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    header h1 {
+        font-size: 1.25rem;
+        order: 1;
+    }
+
+    header .relative {
+        order: 3;
+        width: 100%;
+        max-width: none;
+        margin: 0;
+    }
+
+    header .flex.items-center {
+        order: 2;
+        gap: 0.5rem;
+    }
+
+    #total-count-display {
+        font-size: 0.875rem;
+    }
+
+    #logout-btn {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    /* Fixed left buttons - make them smaller and repositioned */
+    .fixed.top-1\\/2 {
+        left: 0.5rem;
+        gap: 0.5rem;
+    }
+
+    .fixed.top-1\\/2 button {
+        padding: 0.5rem;
+        width: 2.5rem;
+        height: 2.5rem;
+    }
+
+    .fixed.top-1\\/2 svg {
+        width: 1.25rem;
+        height: 1.25rem;
+    }
+
+    /* Sidebar adjustments */
+    #sidebar {
+        width: 85vw;
+        max-width: 300px;
+    }
+
+    /* Auth container adjustments */
+    .auth-container {
+        margin-top: 6rem;
+        padding: 0 0.5rem;
+    }
+
+    .table-container-glass {
+        margin: 0.5rem 0;
+        padding: 1rem;
+    }
+
+    /* Table responsiveness */
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+        min-width: 600px;
+    }
+
+    /* Modal adjustments */
+    #modal-content {
+        margin: 1rem;
+        max-height: calc(100vh - 2rem);
+        width: calc(100vw - 2rem);
+        max-width: none;
+    }
+
+    #modal-content .flex.flex-col.md\\:flex-row {
+        flex-direction: column;
+    }
+
+    #modal-content img {
+        width: 200px;
+        margin: 0 auto;
+    }
+
+    /* Notification container */
+    #notification-container {
+        right: 1rem;
+        left: 1rem;
+        width: auto;
+        top: 5rem;
+    }
+
+    /* Create container */
+    #create-container .flex {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    #new-category-input {
+        width: 100%;
+        border-radius: 0.375rem;
+    }
+
+    #add-category-btn {
+        width: 100%;
+        border-radius: 0.375rem;
+    }
+}
+
+/* Tablet Devices (769px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+    header {
+        padding: 1rem 2rem;
+    }
+
+    header h1 {
+        font-size: 1.5rem;
+    }
+
+    #main-content {
+        padding-left: 3rem;
+        padding-right: 2rem;
+    }
+
+    #sidebar {
+        width: 280px;
+    }
+
+    .table-container-glass {
+        margin: 1rem 0;
+    }
+
+    #modal-content {
+        max-width: 90vw;
+        margin: 2rem;
+    }
+
+    /* Adjust button container for tablet */
+    .fixed.top-1\\/2 {
+        left: 1rem;
+    }
+}
+
+/* Large Desktop (1025px+) */
+@media (min-width: 1025px) {
+    .container {
+        max-width: 1200px;
+    }
+
+    #main-content {
+        padding-left: 6rem;
+    }
+
+    .table-container-glass {
+        margin: 1.5rem 0;
+    }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+
+    button,
+    .auth-toggle-link {
+        min-height: 44px;
+        /* Minimum touch target size */
+        min-width: 44px;
+    }
+
+    input,
+    select,
+    textarea {
+        font-size: 16px;
+        /* Prevent zoom on iOS */
+    }
+
+    .table-responsive {
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2),
+(min-resolution: 192dpi) {
+    body {
+        background-size: cover;
+    }
+}
+
+/* Landscape orientation on mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+    header {
+        padding: 0.5rem 1rem;
+    }
+
+    header h1 {
+        font-size: 1.125rem;
+    }
+
+    .auth-container {
+        margin-top: 4rem;
+    }
+
+    .fixed.top-1\\/2 {
+        top: 40%;
+    }
+}
+
+/* Print styles */
+@media print {
+    body::before {
+        display: none;
+    }
+
+    header,
+    .fixed,
+    #sidebar,
+    #notification-container {
+        display: none !important;
+    }
+
+    #main-content {
+        padding: 0;
+        margin: 0;
+    }
+
+    .table-container-glass {
+        background: white !important;
+        color: black !important;
+        box-shadow: none !important;
+        border: 1px solid #ccc !important;
+    }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Focus styles for keyboard navigation */
+button:focus,
+input:focus,
+select:focus,
+textarea:focus,
+a:focus {
+    outline: 2px solid #ef4444;
+    outline-offset: 2px;
+}
+
+/* Ensure tables are scrollable on small screens */
+.table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 0.5rem;
+}
+
+.table-wrapper table {
+    min-width: 100%;
+    width: max-content;
+}
+
+/* Mobile-specific button adjustments */
+@media (max-width: 768px) {
+    .btn-mobile-full {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+
+    .flex-mobile-col {
+        flex-direction: column;
+    }
+
+    .gap-mobile-2 {
+        gap: 0.5rem;
+    }
+}
+
+/* 
+Additional mobile optimizations */
+@media (max-width: 480px) {
+
+    /* Very small screens */
+    header {
+        padding: 0.5rem;
+    }
+
+    header h1 {
+        font-size: 1rem;
+    }
+
+    #search-input {
+        font-size: 16px;
+        /* Prevent zoom on iOS */
+        padding: 0.75rem 0.75rem 0.75rem 2.5rem;
+    }
+
+    .auth-container {
+        margin-top: 5rem;
+        padding: 0 0.25rem;
+    }
+
+    .table-container-glass {
+        padding: 0.75rem;
+        margin: 0.25rem 0;
+    }
+
+    /* Make buttons more touch-friendly */
+    button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Improve table readability on very small screens */
+    table {
+        font-size: 0.75rem;
+    }
+
+    /* Stack notification container */
+    #notification-container {
+        top: 4rem;
+        right: 0.5rem;
+        left: 0.5rem;
+    }
+}
+
+/* Improve focus indicators for better accessibility */
+*:focus {
+    outline: 2px solid #ef4444;
+    outline-offset: 2px;
+}
+
+/* Ensure proper contrast for text */
+.text-gray-400 {
+    color: #9ca3af;
+}
+
+/* Improve button hover states for touch devices */
+@media (hover: hover) {
+    button:hover {
+        transform: translateY(-1px);
+    }
+}
+
+/* Ensure tables don't break layout */
+.table-wrapper {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+/* Improve sidebar on very small screens */
+@media (max-width: 480px) {
+    #sidebar {
+        width: 90vw;
+        max-width: 280px;
+    }
+}
+
+/* Ensure proper spacing for mobile */
+@media (max-width: 768px) {
+    .space-y-4>*+* {
+        margin-top: 1rem;
+    }
+
+    .space-x-2>*+* {
+        margin-left: 0.5rem;
     }
 }
