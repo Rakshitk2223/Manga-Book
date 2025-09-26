@@ -16,7 +16,7 @@ app.use(helmet({
             styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com"],
             scriptSrc: ["'self'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com"],
             imgSrc: ["'self'", "data:", "https:", "http:"],
-            connectSrc: ["'self'", "https://api.jikan.moe"],
+            connectSrc: ["'self'", "https://api.jikan.moe", "https://graphql.anilist.co", "https://kitsu.io"],
             fontSrc: ["'self'", "https:", "data:"],
             objectSrc: ["'none'"],
             mediaSrc: ["'self'"],
@@ -99,10 +99,54 @@ mongoose.connection.on('reconnected', () => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
+    const mongoStates = {
+        0: 'disconnected',
+        1: 'connected',
+        2: 'connecting',
+        3: 'disconnecting'
+    };
+    
     res.json({ 
         status: 'OK', 
         timestamp: new Date().toISOString(),
-        mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+        mongodb: {
+            state: mongoStates[mongoose.connection.readyState] || 'unknown',
+            readyState: mongoose.connection.readyState,
+            host: mongoose.connection.host,
+            name: mongoose.connection.name
+        },
+        environment: process.env.NODE_ENV,
+        port: process.env.PORT || 5001
+    });
+});
+
+// Detailed health check for debugging
+app.get('/api/health/detailed', (req, res) => {
+    const mongoStates = {
+        0: 'disconnected',
+        1: 'connected',
+        2: 'connecting',
+        3: 'disconnecting'
+    };
+    
+    res.json({
+        server: {
+            status: 'running',
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime(),
+            memory: process.memoryUsage(),
+            environment: process.env.NODE_ENV
+        },
+        database: {
+            state: mongoStates[mongoose.connection.readyState] || 'unknown',
+            readyState: mongoose.connection.readyState,
+            host: mongoose.connection.host,
+            name: mongoose.connection.name,
+            collections: mongoose.connection.collections ? Object.keys(mongoose.connection.collections) : []
+        },
+        cors: {
+            allowedOrigins: allowedOrigins
+        }
     });
 });
 

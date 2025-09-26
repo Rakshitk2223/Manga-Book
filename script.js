@@ -120,6 +120,63 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
+    // Test registration endpoint function
+    async function testRegistrationEndpoint() {
+        showNotification('Testing registration endpoint...', 'info');
+        
+        try {
+            // Test 1: Health check
+            console.log('🔍 Testing server health...');
+            const healthResponse = await fetch(`${API_URL}/health`);
+            const healthData = await healthResponse.json();
+            console.log('Health check result:', healthData);
+            
+            if (healthData.mongodb !== 'connected' && healthData.mongodb.state !== 'connected') {
+                showNotification('❌ Database is not connected', 'error');
+                return;
+            }
+            
+            // Test 2: Auth test endpoint
+            console.log('🔍 Testing auth routes...');
+            const authTestResponse = await fetch(`${API_URL}/auth/test`);
+            const authTestData = await authTestResponse.json();
+            console.log('Auth test result:', authTestData);
+            
+            // Test 3: Registration with test data
+            console.log('🔍 Testing registration endpoint...');
+            const testRegistrationResponse = await fetch(`${API_URL}/auth/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: 'testuser_' + Date.now(),
+                    email: 'test_' + Date.now() + '@example.com',
+                    password: 'testpassword123',
+                    securityWord: 'testword'
+                })
+            });
+            
+            console.log('Registration test status:', testRegistrationResponse.status);
+            const testRegistrationData = await testRegistrationResponse.json();
+            console.log('Registration test result:', testRegistrationData);
+            
+            if (testRegistrationResponse.ok) {
+                showNotification('✅ Registration endpoint is working! Try creating your account again.', 'success');
+            } else {
+                showNotification(`❌ Registration test failed: ${testRegistrationData.message}`, 'error');
+                if (testRegistrationData.debug) {
+                    console.log('Debug info:', testRegistrationData.debug);
+                }
+            }
+            
+        } catch (error) {
+            console.error('Registration test failed:', error);
+            showNotification(`❌ Registration test failed: ${error.message}`, 'error');
+        }
+    }
+
     // Debug connection function
     async function debugConnection() {
         showNotification('Testing connection...', 'info');
@@ -376,9 +433,35 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             showNotification('Creating account...', 'info');
             
+            // First, test server connectivity
+            console.log('Testing server connectivity...');
+            try {
+                const healthResponse = await fetch(`${API_URL}/health`, { 
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
+                console.log('Health check status:', healthResponse.status);
+                
+                if (!healthResponse.ok) {
+                    throw new Error(`Server health check failed: ${healthResponse.status}`);
+                }
+                
+                const healthData = await healthResponse.json();
+                console.log('Server health:', healthData);
+                
+                if (healthData.mongodb !== 'connected' && healthData.mongodb.state !== 'connected') {
+                    showNotification('Database connection issue. Please try again in a moment.', 'error');
+                    return;
+                }
+            } catch (healthError) {
+                console.error('Health check failed:', healthError);
+                showNotification('Cannot connect to server. Please check your internet connection.', 'error');
+                return;
+            }
+            
             // Add timeout and retry logic
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout for cold starts
             
             console.log('Attempting registration to:', `${API_URL}/auth/register`);
             
@@ -398,11 +481,12 @@ document.addEventListener('DOMContentLoaded', () => {
             
             let data;
             try {
-                data = await response.json();
+                const responseText = await response.text();
+                console.log('Raw response:', responseText);
+                data = JSON.parse(responseText);
                 console.log('Registration response data:', data);
             } catch (jsonError) {
                 console.error('Failed to parse response as JSON:', jsonError);
-                console.log('Raw response text:', await response.text());
                 throw new Error('Server returned invalid response format');
             }
             
@@ -434,9 +518,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     showNotification(data.message || `Registration failed (Error ${response.status}). Please try again.`, 'error');
                 }
                 
-                // Suggest using the debug tool
+                // Show specific troubleshooting steps
                 setTimeout(() => {
-                    showNotification('💡 Try the "Having connection issues?" button below for more help.', 'info');
+                    if (response.status === 503) {
+                        showNotification('💡 Database connection issue. Try the "Test Registration Endpoint" button.', 'info');
+                    } else if (response.status === 500) {
+                        showNotification('💡 Server error. Try the "Test Registration Endpoint" button for details.', 'info');
+                    } else {
+                        showNotification('💡 Try the "Having connection issues?" button below for more help.', 'info');
+                    }
                 }, 3000);
             }
         } catch (error) {
@@ -755,6 +845,117 @@ document.addEventListener('DOMContentLoaded', () => {
         modalContent.innerHTML = ''; // Clear content to prevent old data flashing
     }
 
+    async function showImageSearchModal(entry, category, index) {
+        openDetailsModal();
+        modalContent.innerHTML = `
+            <button id="modal-close-btn" class="absolute top-2 right-2 md:top-4 md:right-4 text-gray-400 hover:text-white text-2xl md:text-3xl z-10 bg-gray-800 rounded-full w-8 h-8 md:w-10 md:h-10 flex items-center justify-center">&times;</button>
+            <div class="pt-8 md:pt-0">
+                <h2 class="text-xl md:text-2xl font-bold text-white mb-4">Search Image for "${entry.name}"</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-white text-sm font-bold mb-2">Search Term:</label>
+                        <input type="text" id="search-term-input" value="${entry.name}" class="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button id="search-anilist-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Search AniList</button>
+                        <button id="search-kitsu-btn" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded">Search Kitsu</button>
+                        <button id="search-jikan-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">Search Jikan</button>
+                        <button id="search-all-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Search All</button>
+                    </div>
+                    <div id="search-results" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                        <!-- Search results will appear here -->
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Add event listeners for search buttons
+        document.getElementById('search-anilist-btn').addEventListener('click', () => searchFromAPI('anilist', entry, category, index));
+        document.getElementById('search-kitsu-btn').addEventListener('click', () => searchFromAPI('kitsu', entry, category, index));
+        document.getElementById('search-jikan-btn').addEventListener('click', () => searchFromAPI('jikan', entry, category, index));
+        document.getElementById('search-all-btn').addEventListener('click', () => searchFromAPI('all', entry, category, index));
+
+        // Add close button listener
+        document.getElementById('modal-close-btn').addEventListener('click', closeDetailsModal);
+    }
+
+    async function searchFromAPI(apiType, entry, category, index) {
+        const searchTerm = document.getElementById('search-term-input').value.trim();
+        const resultsContainer = document.getElementById('search-results');
+        
+        if (!searchTerm) {
+            showNotification('Please enter a search term', 'error');
+            return;
+        }
+
+        resultsContainer.innerHTML = '<p class="text-white text-center col-span-full">Searching...</p>';
+
+        let results = [];
+
+        try {
+            if (apiType === 'anilist' || apiType === 'all') {
+                const anilistResult = await fetchCoverFromAniList(searchTerm);
+                if (anilistResult) results.push(anilistResult);
+            }
+
+            if (apiType === 'kitsu' || apiType === 'all') {
+                const kitsuResult = await fetchCoverFromKitsu(searchTerm);
+                if (kitsuResult) results.push(kitsuResult);
+            }
+
+            if (apiType === 'jikan' || apiType === 'all') {
+                const jikanResult = await fetchCoverFromJikan(searchTerm);
+                if (jikanResult) results.push(jikanResult);
+            }
+
+            if (results.length === 0) {
+                resultsContainer.innerHTML = '<p class="text-red-400 text-center col-span-full">No results found. Try a different search term.</p>';
+                return;
+            }
+
+            // Display results
+            resultsContainer.innerHTML = results.map((result, idx) => `
+                <div class="bg-gray-800 rounded-lg p-4 cursor-pointer hover:bg-gray-700 transition-colors" onclick="selectImage('${result.imageUrl}', '${category}', ${index}, '${result.source}')">
+                    <img src="${result.imageUrl}" alt="${result.title}" class="w-full h-48 object-cover rounded mb-2" onerror="this.src='https://shorturl.at/JpeLA'">
+                    <h3 class="text-white font-semibold text-sm mb-1">${result.title}</h3>
+                    <p class="text-gray-400 text-xs mb-2">Source: ${result.source}</p>
+                    ${result.score || result.averageScore ? `<p class="text-yellow-400 text-xs">Score: ${result.score || result.averageScore}</p>` : ''}
+                    ${result.genres ? `<p class="text-blue-400 text-xs">${result.genres.slice(0, 3).join(', ')}</p>` : ''}
+                </div>
+            `).join('');
+
+        } catch (error) {
+            console.error('Search error:', error);
+            resultsContainer.innerHTML = '<p class="text-red-400 text-center col-span-full">Search failed. Please try again.</p>';
+        }
+    }
+
+    // Global function to select an image (needs to be global for onclick)
+    window.selectImage = function(imageUrl, category, index, source) {
+        const entry = categoriesData[category][index];
+        entry.imageUrl = imageUrl;
+        entry.apiSource = source;
+        
+        renderTable(category, categoriesData[category]);
+        closeDetailsModal();
+        showNotification(`Image updated for '${entry.name}' from ${source}`, 'success');
+    }
+
+    // Global function to preview image when adding new entries
+    window.previewImage = function(event, input) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = input.closest('tr').querySelector('.new-cover-preview');
+                if (preview) {
+                    preview.src = e.target.result;
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
     async function fetchAndDisplayDetails(entry) {
         openDetailsModal();
         modalContent.innerHTML = `<p class="text-white text-center text-lg">Fetching details for ${entry.name}...</p>`;
@@ -1065,9 +1266,143 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * Fetches a manga cover from the Jikan API.
+     * Fetches a manga cover from AniList API (GraphQL).
      * @param {string} mangaName - The title of the manga to search for.
-     * @returns {Promise<string|null>} A promise that resolves to the cover image URL or null.
+     * @returns {Promise<Object|null>} A promise that resolves to manga data with cover image URL or null.
+     */
+    async function fetchCoverFromAniList(mangaName) {
+        const query = `
+            query ($search: String) {
+                Media (search: $search, type: MANGA) {
+                    id
+                    title {
+                        romaji
+                        english
+                        native
+                    }
+                    coverImage {
+                        extraLarge
+                        large
+                        medium
+                    }
+                    bannerImage
+                    description
+                    genres
+                    averageScore
+                    status
+                    chapters
+                    volumes
+                    startDate {
+                        year
+                    }
+                }
+            }
+        `;
+
+        const variables = { search: mangaName };
+
+        try {
+            const response = await fetch('https://graphql.anilist.co', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ query, variables })
+            });
+
+            if (!response.ok) {
+                console.warn(`AniList API request failed for "${mangaName}" with status: ${response.status}`);
+                return null;
+            }
+
+            const data = await response.json();
+            if (data.data && data.data.Media) {
+                const media = data.data.Media;
+                const imageUrl = media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium;
+                
+                if (imageUrl) {
+                    console.log(`Found cover on AniList for "${mangaName}":`, imageUrl);
+                    return {
+                        imageUrl,
+                        title: media.title?.english || media.title?.romaji || mangaName,
+                        description: media.description,
+                        genres: media.genres,
+                        score: media.averageScore,
+                        status: media.status,
+                        chapters: media.chapters,
+                        volumes: media.volumes,
+                        year: media.startDate?.year,
+                        bannerImage: media.bannerImage,
+                        source: 'AniList'
+                    };
+                }
+            }
+
+            console.warn(`Could not find cover for "${mangaName}" on AniList.`);
+            return null;
+
+        } catch (error) {
+            console.error(`Error fetching from AniList API for "${mangaName}":`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Fetches a manga cover from Kitsu API (REST).
+     * @param {string} mangaName - The title of the manga to search for.
+     * @returns {Promise<Object|null>} A promise that resolves to manga data with cover image URL or null.
+     */
+    async function fetchCoverFromKitsu(mangaName) {
+        const apiUrl = `https://kitsu.io/api/edge/manga?filter[text]=${encodeURIComponent(mangaName)}&page[limit]=1`;
+
+        try {
+            const response = await fetch(apiUrl, {
+                headers: {
+                    'Accept': 'application/vnd.api+json',
+                    'Content-Type': 'application/vnd.api+json'
+                }
+            });
+
+            if (!response.ok) {
+                console.warn(`Kitsu API request failed for "${mangaName}" with status: ${response.status}`);
+                return null;
+            }
+
+            const data = await response.json();
+            if (data.data && data.data.length > 0) {
+                const manga = data.data[0].attributes;
+                const imageUrl = manga.posterImage?.large || manga.posterImage?.medium || manga.posterImage?.small;
+                
+                if (imageUrl) {
+                    console.log(`Found cover on Kitsu for "${mangaName}":`, imageUrl);
+                    return {
+                        imageUrl,
+                        title: manga.canonicalTitle || manga.titles?.en || manga.titles?.en_jp || mangaName,
+                        description: manga.synopsis,
+                        averageRating: manga.averageRating,
+                        status: manga.status,
+                        chapterCount: manga.chapterCount,
+                        volumeCount: manga.volumeCount,
+                        startDate: manga.startDate,
+                        source: 'Kitsu'
+                    };
+                }
+            }
+
+            console.warn(`Could not find cover for "${mangaName}" on Kitsu.`);
+            return null;
+
+        } catch (error) {
+            console.error(`Error fetching from Kitsu API for "${mangaName}":`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Fetches a manga cover from the Jikan API (MyAnimeList).
+     * @param {string} mangaName - The title of the manga to search for.
+     * @returns {Promise<Object|null>} A promise that resolves to manga data with cover image URL or null.
      */
     async function fetchCoverFromJikan(mangaName) {
         // Add a small delay to each request to be respectful to the API
@@ -1092,10 +1427,23 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
 
             if (data.data && data.data.length > 0) {
-                const imageUrl = data.data[0]?.images?.jpg?.image_url;
+                const manga = data.data[0];
+                const imageUrl = manga.images?.jpg?.large_image_url || manga.images?.jpg?.image_url;
+                
                 if (imageUrl) {
                     console.log(`Found cover on Jikan for "${mangaName}":`, imageUrl);
-                    return imageUrl;
+                    return {
+                        imageUrl,
+                        title: manga.title || manga.title_english || mangaName,
+                        description: manga.synopsis,
+                        score: manga.score,
+                        status: manga.status,
+                        chapters: manga.chapters,
+                        volumes: manga.volumes,
+                        year: manga.published?.from ? new Date(manga.published.from).getFullYear() : null,
+                        genres: manga.genres?.map(g => g.name),
+                        source: 'Jikan'
+                    };
                 }
             }
 
@@ -1106,6 +1454,37 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error(`Error fetching from Jikan API for \"${mangaName}\":`, error);
             return null;
         }
+    }
+
+    /**
+     * Fetches manga cover with fallback to multiple APIs.
+     * Tries AniList first, then Kitsu, then Jikan as fallback.
+     * @param {string} mangaName - The title of the manga to search for.
+     * @returns {Promise<Object|null>} A promise that resolves to manga data with cover image URL or null.
+     */
+    async function fetchMangaCover(mangaName) {
+        console.log(`Searching for "${mangaName}" across multiple APIs...`);
+        
+        // Try AniList first (best quality and most reliable)
+        let result = await fetchCoverFromAniList(mangaName);
+        if (result && result.imageUrl) {
+            return result;
+        }
+
+        // Try Kitsu as second option
+        result = await fetchCoverFromKitsu(mangaName);
+        if (result && result.imageUrl) {
+            return result;
+        }
+
+        // Try Jikan as fallback
+        result = await fetchCoverFromJikan(mangaName);
+        if (result && result.imageUrl) {
+            return result;
+        }
+
+        console.warn(`Could not find cover for "${mangaName}" on any API.`);
+        return null;
     }
 
     async function fetchImagesAndRender() {
@@ -1123,9 +1502,15 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let i = 0; i < entriesToFetch.length; i += chunkSize) {
                 const chunk = entriesToFetch.slice(i, i + chunkSize);
                 const fetchPromises = chunk.map(entry =>
-                    fetchCoverFromJikan(entry.name).then(imageUrl => { // Use Jikan directly
-                        if (imageUrl) {
-                            entry.imageUrl = imageUrl;
+                    fetchMangaCover(entry.name).then(result => { // Use multiple APIs with fallback
+                        if (result && result.imageUrl) {
+                            entry.imageUrl = result.imageUrl;
+                            // Store additional metadata if available
+                            if (result.description) entry.description = result.description;
+                            if (result.genres) entry.genres = result.genres;
+                            if (result.score || result.averageScore) entry.apiScore = result.score || result.averageScore;
+                            if (result.status) entry.apiStatus = result.status;
+                            if (result.source) entry.apiSource = result.source;
                         } else {
                             // If not found, keep the default URL
                             entry.imageUrl = defaultImageUrl;
@@ -1298,15 +1683,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
             </div>
-            <div class="table-wrapper overflow-x-auto -webkit-overflow-scrolling-touch">
-                <table class="min-w-full table-auto">
+            <div class="w-full">
+                <table class="w-full table-fixed">
                     <thead>
                         <tr>
-                            <th class="px-2 md:px-4 py-2 text-center text-xs md:text-sm">S.No</th>
-                            <th class="px-1 md:px-2 py-2 text-center text-xs md:text-sm">Cover</th>
-                            <th class="px-2 md:px-4 py-2 text-left text-xs md:text-sm">Name</th>
-                            <th class="px-2 md:px-4 py-2 text-center text-xs md:text-sm">Chapter</th>
-                            <th class="px-2 md:px-4 py-2 text-center text-xs md:text-sm">Actions</th>
+                            <th class="w-12 px-2 py-2 text-center text-xs md:text-sm">No.</th>
+                            <th class="w-16 md:w-20 px-1 py-2 text-center text-xs md:text-sm">Cover</th>
+                            <th class="px-2 py-2 text-left text-xs md:text-sm">Name</th>
+                            <th class="w-20 px-2 py-2 text-center text-xs md:text-sm">Chapter</th>
+                            <th class="w-32 md:w-40 px-2 py-2 text-center text-xs md:text-sm">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1325,16 +1710,18 @@ document.addEventListener('DOMContentLoaded', () => {
                             </tr>
                         ` : entries.map((entry, index) => `
                             <tr data-category="${category}" data-index="${index}" data-action="open-details" class="cursor-pointer hover:bg-gray-800 transition-colors">
-                                <td class="border-t border-gray-700 px-2 md:px-4 py-2 text-center text-sm">${index + 1}</td>
-                                <td class="border-t border-gray-700 px-1 md:px-2 py-2 text-center">
-                                    <img src="${entry.imageUrl || 'https://via.placeholder.com/60x90.png?text=No+Image'}" alt="${entry.name}" class="w-12 h-16 md:w-20 md:h-28 object-cover rounded-md mx-auto pointer-events-none">
+                                <td class="border-t border-gray-700 px-2 py-2 text-center text-sm">${index + 1}</td>
+                                <td class="border-t border-gray-700 px-1 py-2 text-center">
+                                    <img src="${entry.imageUrl || 'https://via.placeholder.com/60x90.png?text=No+Image'}" alt="${entry.name}" class="w-12 h-16 md:w-16 md:h-24 object-cover rounded-md mx-auto pointer-events-none">
                                 </td>
-                                <td class="border-t border-gray-700 px-2 md:px-4 py-2 text-sm md:text-base" contenteditable="true" data-field="name" data-action="edit">${entry.name}</td>
-                                <td class="border-t border-gray-700 px-2 md:px-4 py-2 text-center text-sm md:text-base" contenteditable="true" data-field="chapter" data-action="edit">${entry.chapter}</td>
-                                <td class="border-t border-gray-700 px-2 md:px-4 py-2 text-center">
-                                    <div class="flex flex-col md:flex-row gap-1 md:gap-2 items-center justify-center">
-                                        <button class="delete-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs min-h-[32px] w-full md:w-auto" data-action="delete">Del</button>
-                                        <button class="refresh-cover-btn bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-xs min-h-[32px] w-full md:w-auto" data-action="refresh" title="Refresh Cover">🔄</button>
+                                <td class="border-t border-gray-700 px-2 py-2 text-sm md:text-base break-words" contenteditable="true" data-field="name" data-action="edit" style="word-wrap: break-word; overflow-wrap: break-word; hyphens: auto;">${entry.name}</td>
+                                <td class="border-t border-gray-700 px-2 py-2 text-center text-sm md:text-base" contenteditable="true" data-field="chapter" data-action="edit">${entry.chapter}</td>
+                                <td class="border-t border-gray-700 px-1 py-2 text-center">
+                                    <div class="grid grid-cols-2 gap-1 w-full">
+                                        <button class="delete-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-1 rounded text-xs min-h-[28px]" data-action="delete" title="Delete">🗑️</button>
+                                        <button class="refresh-cover-btn bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-1 rounded text-xs min-h-[28px]" data-action="refresh" title="Refresh Cover">🔄</button>
+                                        <button class="search-image-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-1 rounded text-xs min-h-[28px]" data-action="search" title="Search Image">🔍</button>
+                                        <button class="remove-image-btn bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-1 px-1 rounded text-xs min-h-[28px]" data-action="remove-image" title="Remove Image">🚫</button>
                                     </div>
                                 </td>
                             </tr>
@@ -1364,20 +1751,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const newRow = document.createElement('tr');
-        newRow.className = 'new-entry-row'; // Class to identify the temporary row
+        newRow.className = 'new-entry-row bg-gray-800'; // Class to identify the temporary row
         newRow.innerHTML = `
-            <td class="border-t border-gray-700 px-4 py-2 text-center">${table.rows.length}</td>
-            <td class="border-t border-gray-700 px-2 py-2 text-center">
+            <td class="border-t border-gray-700 px-2 py-2 text-center text-sm">${table.rows.length}</td>
+            <td class="border-t border-gray-700 px-1 py-2 text-center">
                 <input type="file" accept="image/*" class="new-cover-input hidden" onchange="previewImage(event, this)">
-                <label class="cursor-pointer">
-                    <img src="https://via.placeholder.com/80x120.png?text=Cover+Image" alt="Cover Image" class="new-cover-preview w-20 h-28 object-cover rounded-md mx-auto">
+                <label class="cursor-pointer" onclick="this.previousElementSibling.click()">
+                    <img src="https://via.placeholder.com/60x90.png?text=Cover" alt="Cover Image" class="new-cover-preview w-12 h-16 md:w-16 md:h-24 object-cover rounded-md mx-auto hover:opacity-75 transition-opacity">
                 </label>
             </td>
-            <td class="border-t border-gray-700 px-4 py-2"><input type="text" class="new-name-input bg-gray-800 text-white w-full p-1 rounded" placeholder="Name"></td>
-            <td class="border-t border-gray-700 px-4 py-2"><input type="text" inputmode="decimal" class="new-chapter-input bg-gray-800 text-white w-20 p-1 rounded" placeholder="Ch"></td>
-            <td class="border-t border-gray-700 px-4 py-2 text-center">
-                <button class="save-new-btn bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-xs" data-category="${category}">Save</button>
-                <button class="cancel-new-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-1 px-2 rounded text-xs ml-1">Cancel</button>
+            <td class="border-t border-gray-700 px-2 py-2">
+                <input type="text" class="new-name-input bg-gray-700 text-white w-full p-2 rounded text-sm" placeholder="Enter manga name..." style="min-height: 36px;">
+            </td>
+            <td class="border-t border-gray-700 px-2 py-2 text-center">
+                <input type="text" inputmode="decimal" class="new-chapter-input bg-gray-700 text-white w-full p-2 rounded text-sm text-center" placeholder="0" style="min-height: 36px;">
+            </td>
+            <td class="border-t border-gray-700 px-1 py-2 text-center">
+                <div class="grid grid-cols-2 gap-1 w-full">
+                    <button class="save-new-btn bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-1 rounded text-xs min-h-[28px]" data-category="${category}" title="Save">💾</button>
+                    <button class="cancel-new-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-1 px-1 rounded text-xs min-h-[28px]" title="Cancel">❌</button>
+                </div>
             </td>
         `;
         table.tBodies[0].appendChild(newRow);
@@ -1408,7 +1801,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (action === 'open-details') {
             // Prevent modal from opening when clicking on editable fields or buttons
-            if (target.isContentEditable || ['delete', 'refresh', 'edit'].includes(target.dataset.action)) {
+            if (target.isContentEditable || ['delete', 'refresh', 'edit', 'search', 'remove-image'].includes(target.dataset.action)) {
                 return;
             }
             const row = target.closest('tr');
@@ -1495,8 +1888,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 target.disabled = true;
                 target.textContent = '...';
 
-                fetchCoverFromJikan(entry.name).then(imageUrl => {
-                    entry.imageUrl = imageUrl || 'https://shorturl.at/JpeLA';
+                fetchMangaCover(entry.name).then(result => {
+                    if (result && result.imageUrl) {
+                        entry.imageUrl = result.imageUrl;
+                        // Store additional metadata if available
+                        if (result.description) entry.description = result.description;
+                        if (result.genres) entry.genres = result.genres;
+                        if (result.score || result.averageScore) entry.apiScore = result.score || result.averageScore;
+                        if (result.status) entry.apiStatus = result.status;
+                        if (result.source) entry.apiSource = result.source;
+                    } else {
+                        entry.imageUrl = 'https://shorturl.at/JpeLA';
+                    }
                     renderTable(category, categoriesData[category]);
                     showNotification(`Cover for '${entry.name}' updated.`, 'success');
                 }).catch(() => {
@@ -1509,6 +1912,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     showNotification(`Failed to update cover for '${entry.name}'.`, 'error');
                 });
+            }
+        } else if (target.classList.contains('search-image-btn')) {
+            const row = target.closest('tr');
+            const category = row.dataset.category;
+            const index = parseInt(row.dataset.index, 10);
+            const entry = categoriesData[category]?.[index];
+
+            if (entry) {
+                showImageSearchModal(entry, category, index);
+            }
+        } else if (target.classList.contains('remove-image-btn')) {
+            const row = target.closest('tr');
+            const category = row.dataset.category;
+            const index = parseInt(row.dataset.index, 10);
+            const entry = categoriesData[category]?.[index];
+
+            if (entry) {
+                entry.imageUrl = 'https://shorturl.at/JpeLA'; // Set to default image
+                renderTable(category, categoriesData[category]);
+                showNotification(`Image removed for '${entry.name}'`, 'success');
             }
         } else if (target.classList.contains('save-new-btn')) {
             const category = target.dataset.category;
@@ -1544,8 +1967,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     // If no file is provided, fetch from Jikan
                     target.disabled = true; // Disable button to prevent double-clicking
                     target.textContent = 'Searching...';
-                    fetchCoverFromJikan(name).then(imageUrl => {
-                        newEntry.imageUrl = imageUrl || 'https://shorturl.at/JpeLA';
+                    fetchMangaCover(name).then(result => {
+                        if (result && result.imageUrl) {
+                            newEntry.imageUrl = result.imageUrl;
+                            // Store additional metadata if available
+                            if (result.description) newEntry.description = result.description;
+                            if (result.genres) newEntry.genres = result.genres;
+                            if (result.score || result.averageScore) newEntry.apiScore = result.score || result.averageScore;
+                            if (result.status) newEntry.apiStatus = result.status;
+                            if (result.source) newEntry.apiSource = result.source;
+                        } else {
+                            newEntry.imageUrl = 'https://shorturl.at/JpeLA';
+                        }
                         saveEntry();
                     }).catch(() => {
                         newEntry.imageUrl = 'https://shorturl.at/JpeLA';
@@ -1727,6 +2160,16 @@ document.addEventListener('DOMContentLoaded', () => {
             debugConnection();
         });
         console.log('Debug connection button listener attached');
+    }
+
+    // Test registration button
+    const testRegistrationBtn = document.getElementById('test-registration-btn');
+    if (testRegistrationBtn) {
+        testRegistrationBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            testRegistrationEndpoint();
+        });
+        console.log('Test registration button listener attached');
     }
     if (showLoginFromResetLink) {
         showLoginFromResetLink.addEventListener('click', (e) => {

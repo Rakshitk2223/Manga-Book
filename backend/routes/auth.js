@@ -1,5 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
@@ -31,9 +32,16 @@ const validateLogin = [
 
 // Register
 router.post('/register', validateRegister, async (req, res) => {
+    console.log('Registration attempt:', { 
+        body: { ...req.body, password: '[HIDDEN]', securityWord: '[HIDDEN]' },
+        headers: req.headers,
+        ip: req.ip
+    });
+
     // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+        console.log('Validation errors:', errors.array());
         return res.status(400).json({ 
             message: 'Validation failed', 
             errors: errors.array() 
@@ -43,28 +51,43 @@ router.post('/register', validateRegister, async (req, res) => {
     const { username, email, password, securityWord } = req.body;
     
     try {
+        // Check MongoDB connection
+        if (mongoose.connection.readyState !== 1) {
+            console.error('MongoDB not connected. ReadyState:', mongoose.connection.readyState);
+            return res.status(503).json({ 
+                message: 'Database connection unavailable. Please try again in a moment.',
+                debug: 'MongoDB connection state: ' + mongoose.connection.readyState
+            });
+        }
+
+        console.log('Checking for existing user...');
         // Check if user already exists
         const existingUser = await User.findOne({ 
-            $or: [{ email }, { username }] 
+            $or: [{ email: email.toLowerCase() }, { username: username.toLowerCase() }] 
         });
         
         if (existingUser) {
+            console.log('User already exists:', existingUser.email === email.toLowerCase() ? 'email' : 'username');
             return res.status(409).json({ 
-                message: existingUser.email === email ? 'Email already registered' : 'Username already taken' 
+                message: existingUser.email === email.toLowerCase() ? 'Email already registered' : 'Username already taken' 
             });
         }
         
+        console.log('Creating new user...');
         const newUser = new User({ 
-            username: username.toLowerCase(), 
-            email, 
-            password,
-            recoveryKeyword: securityWord,
-            displayName: username
+            username: username.toLowerCase().trim(), 
+            email: email.toLowerCase().trim(), 
+            password: password.trim(),
+            recoveryKeyword: securityWord.trim(),
+            displayName: username.trim()
         });
         
+        console.log('Saving user to database...');
         await newUser.save();
+        console.log('User saved successfully:', newUser._id);
         
         // Create default manga list with categories
+        console.log('Creating default manga list...');
         const defaultCategories = [
             { name: 'Currently Reading', entries: [], sortOrder: 1 },
             { name: 'Plan to Read', entries: [], sortOrder: 2 },
@@ -79,9 +102,12 @@ router.post('/register', validateRegister, async (req, res) => {
         });
         
         await mangaList.save();
+        console.log('Manga list created successfully');
         
+        console.log('Generating JWT token...');
         const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: '24h' });
         
+        console.log('Registration completed successfully for user:', newUser.username);
         res.status(201).json({
             message: 'User registered successfully',
             token,
@@ -93,8 +119,41 @@ router.post('/register', validateRegister, async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Registration error:', error);
-        res.status(500).json({ message: 'Error registering user', error: error.message });
+        console.error('Registration error details:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name,
+            code: error.code
+        });
+        
+        // Handle specific MongoDB errors
+        if (error.code === 11000) {
+            const field = Object.keys(error.keyPattern)[0];
+            return res.status(409).json({ 
+                message: `${field === 'email' ? 'Email' : 'Username'} already exists`,
+                debug: 'Duplicate key error'
+            });
+        }
+        
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ 
+                message: 'Invalid user data',
+                errors: Object.values(error.errors).map(e => e.message),
+                debug: 'Mongoose validation error'
+            });
+        }
+        
+        if (error.name === 'MongoNetworkError' || error.name === 'MongoTimeoutError') {
+            return res.status(503).json({ 
+                message: 'Database connection issue. Please try again.',
+                debug: 'MongoDB network/timeout error'
+            });
+        }
+        
+        res.status(500).json({ 
+            message: 'Server error during registration. Please try again.',
+            debug: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
     }
 });
 
@@ -244,6 +303,15 @@ router.post('/reset-password', [
         console.error('Password reset error:', error);
         res.status(500).json({ message: 'Error resetting password', error: error.message });
     }
+});
+
+// Test endpoint to check if auth routes are working
+router.get('/test', (req, res) => {
+    res.json({
+        message: 'Auth routes are working',
+        timestamp: new Date().toISOString(),
+        mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+    });
 });
 
 module.exports = router;

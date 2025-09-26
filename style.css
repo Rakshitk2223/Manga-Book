@@ -414,16 +414,71 @@ a:focus {
     outline-offset: 2px;
 }
 
-/* Ensure tables are scrollable on small screens */
+/* Responsive table layout - no horizontal scroll */
 .table-wrapper {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    max-width: 100%;
     border-radius: 0.5rem;
+    max-height: 70vh;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .table-wrapper table {
-    min-width: 100%;
-    width: max-content;
+    width: 100%;
+    table-layout: fixed;
+}
+
+/* Sticky table headers */
+.table-wrapper thead th {
+    position: sticky;
+    top: 0;
+    background-color: rgba(31, 41, 55, 0.95);
+    backdrop-filter: blur(10px);
+    z-index: 10;
+    border-bottom: 2px solid #374151;
+}
+
+/* Ensure manga names wrap properly */
+.table-wrapper td {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+}
+
+/* Specific column widths for mobile */
+@media (max-width: 768px) {
+
+    .table-wrapper th:nth-child(1),
+    .table-wrapper td:nth-child(1) {
+        width: 40px;
+        /* S.No column */
+    }
+
+    .table-wrapper th:nth-child(2),
+    .table-wrapper td:nth-child(2) {
+        width: 60px;
+        /* Cover column */
+    }
+
+    .table-wrapper th:nth-child(3),
+    .table-wrapper td:nth-child(3) {
+        width: auto;
+        /* Name column - takes remaining space */
+        min-width: 120px;
+    }
+
+    .table-wrapper th:nth-child(4),
+    .table-wrapper td:nth-child(4) {
+        width: 70px;
+        /* Chapter column */
+    }
+
+    .table-wrapper th:nth-child(5),
+    .table-wrapper td:nth-child(5) {
+        width: 100px;
+        /* Actions column */
+    }
 }
 
 /* Mobile-specific button adjustments */
@@ -440,6 +495,38 @@ a:focus {
     .gap-mobile-2 {
         gap: 0.5rem;
     }
+
+    /* Compact action buttons for mobile */
+    .table-wrapper .grid.grid-cols-2 {
+        gap: 2px;
+    }
+
+    .table-wrapper .grid.grid-cols-2 button {
+        font-size: 10px;
+        padding: 2px 4px;
+        min-height: 24px;
+    }
+}
+
+/* Ensure text wrapping in table cells */
+.table-wrapper td[contenteditable="true"] {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    max-width: 0;
+    /* This forces the cell to use available space */
+}
+
+/* Improve input styling in new entry rows */
+.new-entry-row input {
+    border: 1px solid #4B5563;
+    transition: border-color 0.2s ease;
+}
+
+.new-entry-row input:focus {
+    border-color: #3B82F6;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
 /* 
@@ -488,6 +575,38 @@ Additional mobile optimizations */
         right: 0.5rem;
         left: 0.5rem;
     }
+
+    /* Extra small screen table adjustments */
+    .table-wrapper th:nth-child(1),
+    .table-wrapper td:nth-child(1) {
+        width: 30px;
+        /* Even smaller S.No column */
+    }
+
+    .table-wrapper th:nth-child(2),
+    .table-wrapper td:nth-child(2) {
+        width: 50px;
+        /* Smaller cover column */
+    }
+
+    .table-wrapper th:nth-child(4),
+    .table-wrapper td:nth-child(4) {
+        width: 60px;
+        /* Smaller chapter column */
+    }
+
+    .table-wrapper th:nth-child(5),
+    .table-wrapper td:nth-child(5) {
+        width: 90px;
+        /* Smaller actions column */
+    }
+
+    /* Make action buttons even more compact */
+    .table-wrapper .grid.grid-cols-2 button {
+        font-size: 9px;
+        padding: 1px 2px;
+        min-height: 22px;
+    }
 }
 
 /* Improve focus indicators for better accessibility */
@@ -508,11 +627,7 @@ Additional mobile optimizations */
     }
 }
 
-/* Ensure tables don't break layout */
-.table-wrapper {
-    max-width: 100%;
-    overflow-x: auto;
-}
+/* Ensure tables don't break layout - remove duplicate */
 
 /* Improve sidebar on very small screens */
 @media (max-width: 480px) {
